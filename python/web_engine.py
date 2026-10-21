@@ -5,6 +5,7 @@ pickle loading, Tk, CUDA, or subprocesses. JSON is the public boundary.
 """
 from __future__ import annotations
 import io
+import base64
 import json
 import math
 import struct
@@ -14,6 +15,7 @@ from dataclasses import replace
 import numpy as np
 from PIL import Image
 from scipy.special import jn_zeros, jv
+from image_color import decode_intensity, color_config
 
 from waveguide_core.config import WaveguideConfig
 from waveguide_core.cylindrical_modes import Mode, solve_mode, bessel_seed, _marcatili_amplitude_guess
@@ -42,6 +44,9 @@ DEFAULTS = dict(wavelength_nm=800, diameter_um=300, waist_um=45,
 _simulation = None
 _image = None
 _image_meta = None
+_source_image = None
+_color_config = None
+_palette_distance = None
 
 
 def clean(value):
@@ -321,48 +326,87 @@ def read_spe(raw, mode='auto', frame=0):
     return np.asarray(result, dtype=float), {'frames': frames, 'spe_mode': mode, 'spe_version': version}
 
 
+def _working_scalar(values, size):
+    if values.shape[::-1] == size:
+        return values
+    return np.asarray(Image.fromarray(values.astype('float32')).resize(size, Image.Resampling.BOX), dtype=float)
+
+
+def _decode_source(source, meta, data):
+    decoded, distances, config = decode_intensity(source, data)
+    size=(meta['width'], meta['height'])
+    return _working_scalar(decoded,size), None if distances is None else _working_scalar(distances,size), config
+
+
+def palette_diagnostics(mask=None):
+    if _palette_distance is None:
+        return {'method': 'native_grayscale' if _source_image.ndim==2 else 'rgb_luminance'}
+    values=_palette_distance[mask] if mask is not None else _palette_distance.ravel()
+    return {'method':'inverse_colormap_nearest_rgb','mean_palette_distance':float(np.mean(values)),
+            'p95_palette_distance':float(np.percentile(values,95))}
+
+
+def image_payload(include_source=False, roi=None):
+    processed=preprocess_experimental_image(_image,background_percentile=0,clip_percentile=100)
+    result={'meta':_image_meta,'pixels':np.round(processed,5).ravel(),
+            'palette_config':_color_config,'palette_diagnostics':palette_diagnostics()}
+    if roi is not None:
+        result['roi']=roi
+    if include_source and _source_image.ndim==3:
+        rgb=Image.fromarray(_source_image).resize((_image_meta['width'],_image_meta['height']),Image.Resampling.BOX)
+        result['source_rgb']=base64.b64encode(np.asarray(rgb,dtype=np.uint8).tobytes()).decode('ascii')
+    return result
+
+
+def decode_image(data):
+    global _image, _color_config, _palette_distance
+    if _source_image is None:
+        raise ValueError('Load an image first.')
+    config=color_config(data) if _source_image.ndim==3 else {'source_palette':'native','palette_reverse':False}
+    if config!=_color_config:
+        values,distances,config=_decode_source(_source_image,_image_meta,data)
+        preprocess_experimental_image(values,background_percentile=0,clip_percentile=100)
+        _image,_palette_distance,_color_config=values,distances,config
+    return image_payload()
+
+
 def load_image(data, raw):
-    global _image, _image_meta
+    global _image, _image_meta, _source_image, _color_config, _palette_distance
     if len(raw) > 32 * 1024**2:
         raise ValueError('File exceeds 32 MB. Reduce image size or frame count.')
-    name = str(data.get('name', 'image'))[:200]
-    meta = {'name': name}
+    name=str(data.get('name','image'))[:200]
+    meta={'name':name}
     if name.lower().endswith('.spe'):
-        values, extra = read_spe(raw, str(data.get('spe_mode', 'auto')), int(data.get('frame', 0)))
+        source,extra=read_spe(raw,str(data.get('spe_mode','auto')),int(data.get('frame',0)))
         meta.update(extra)
     else:
-        Image.MAX_IMAGE_PIXELS = 16_000_000
+        Image.MAX_IMAGE_PIXELS=16_000_000
         try:
             with Image.open(io.BytesIO(raw)) as im:
-                if im.width * im.height > 16_000_000:
+                if im.width*im.height>16_000_000:
                     raise ValueError('Image exceeds 16 million pixels.')
-                # Preserve 16-bit intensity and scientific orientation; do not apply EXIF.
-                if im.mode in ('P', 'CMYK', 'YCbCr', 'HSV'):
-                    im = im.convert('RGB')
-                values = np.asarray(im, dtype=float)
-        except (OSError, Image.DecompressionBombError) as e:
+                if im.mode in ('RGBA','LA') or (im.mode=='P' and 'transparency' in im.info):
+                    rgba=im.convert('RGBA')
+                    background=Image.new('RGBA',rgba.size,'white')
+                    im=Image.alpha_composite(background,rgba).convert('RGB')
+                elif im.mode not in ('1','L','I','F','I;16','I;16B','I;16L'):
+                    im=im.convert('RGB')
+                source=np.array(im)
+        except (OSError,Image.DecompressionBombError) as e:
             raise ValueError('Could not read the image. Use PNG, TIFF, JPEG or SPE 2.x.') from e
-        if values.ndim == 3:
-            if values.shape[2] < 3:
-                values = values[:, :, 0]
-            else:
-                values = values[:, :, :3] @ np.array([.2126, .7152, .0722])
-                meta['color_note'] = 'RGB converted to luminance. For pseudocolour scientific images, use the original monochrome intensity data.'
-    if values.ndim != 2 or min(values.shape) < 16:
-        raise ValueError('A 2D image of at least 16 × 16 pixels is required.')
-    if not np.all(np.isfinite(values)):
+    if source.ndim not in (2,3) or min(source.shape[:2])<16:
+        raise ValueError('A 2D image of at least 16 Г— 16 pixels is required.')
+    if not np.all(np.isfinite(source)):
         raise ValueError('Image contains NaN or infinite values.')
-    meta['original_width'], meta['original_height'] = values.shape[1], values.shape[0]
-    scale = min(1, 1024 / max(values.shape))
-    if scale < 1:
-        values = np.asarray(Image.fromarray(values.astype('float32')).resize(
-            (round(values.shape[1]*scale), round(values.shape[0]*scale)), Image.Resampling.BOX), dtype=float)
-    meta.update(width=values.shape[1], height=values.shape[0], scale=scale)
-    processed = preprocess_experimental_image(values, background_percentile=0, clip_percentile=100)
-    cx, cy, radius = automatic_roi(processed)
-    _image, _image_meta = values, meta
-    return {'meta': meta, 'pixels': np.round(processed, 5).ravel(),
-            'roi': {'center_x': cx, 'center_y': cy, 'radius_px': radius}}
+    height,width=source.shape[:2]
+    scale=min(1,1024/max(width,height))
+    meta.update(original_width=width,original_height=height,width=round(width*scale),
+                height=round(height*scale),scale=scale,color_source=source.ndim==3)
+    values,distances,config=_decode_source(source,meta,data)
+    processed=preprocess_experimental_image(values,background_percentile=0,clip_percentile=100)
+    cx,cy,radius=automatic_roi(processed)
+    _source_image,_image,_image_meta,_palette_distance,_color_config=source,values,meta,distances,config
+    return image_payload(True,dict(center_x=cx,center_y=cy,radius_px=radius))
 
 
 def demo_image():
@@ -393,24 +437,35 @@ def refine_roi(data):
     return {'roi': dict(center_x=cx, center_y=cy, radius_px=radius), 'quality': quality}
 
 
-def slit_mask(data, roi):
-    height, width = _image.shape
-    enabled = data.get('slit_enabled', False)
-    if not isinstance(enabled, bool):
-        raise ValueError('Invalid slit setting.')
+def analysis_mask(data, roi):
+    height,width=_image.shape
+    enabled=data.get('region_enabled',False)
+    if not isinstance(enabled,bool):
+        raise ValueError('Invalid rectangular selection setting.')
     if not enabled:
-        return None, {'slit_enabled': False}
-    angle = number(data, 'slit_angle', -180, 180, 0)
-    band_width = number(data, 'slit_width', 1, math.hypot(width, height), max(5, roi['radius_px']*.2))
-    x = number(data, 'slit_x', 0, width-1, roi['center_x'])
-    y = number(data, 'slit_y', 0, height-1, roi['center_y'])
-    yy, xx = np.indices(_image.shape, dtype=float)
-    angle_rad = math.radians(angle)
-    distance = -(xx-x)*math.sin(angle_rad) + (yy-y)*math.cos(angle_rad)
-    mask = np.abs(distance) <= band_width/2
-    if mask.sum() < 32:
-        raise ValueError('Too few pixels remain inside the slit. Increase its width or move it onto the image.')
-    return mask, dict(slit_enabled=True, slit_angle=angle, slit_width=band_width, slit_x=x, slit_y=y)
+        return None, {'region_enabled':False}
+    angle=number(data,'region_angle',-180,180,0)
+    box_width=number(data,'region_width',1,math.hypot(width,height),2*roi['radius_px'])
+    box_height=number(data,'region_height',1,math.hypot(width,height),2*roi['radius_px'])
+    x=number(data,'region_x',0,width-1,roi['center_x'])
+    y=number(data,'region_y',0,height-1,roi['center_y'])
+    yy,xx=np.indices(_image.shape,dtype=float)
+    a=math.radians(angle)
+    along=(xx-x)*math.cos(a)+(yy-y)*math.sin(a)
+    across=-(xx-x)*math.sin(a)+(yy-y)*math.cos(a)
+    mask=(np.abs(along)<=box_width/2)&(np.abs(across)<=box_height/2)
+    if mask.sum()<32:
+        raise ValueError('Too few pixels remain inside the rectangle. Enlarge or reposition it.')
+    return mask,dict(region_enabled=True,region_angle=angle,region_width=box_width,
+                     region_height=box_height,region_x=x,region_y=y)
+
+
+def slit_mask(data, roi):
+    """Compatibility for earlier exported settings; new UI always uses a finite rectangle."""
+    return analysis_mask({**data,'region_enabled':data.get('slit_enabled',False),
+        'region_angle':data.get('slit_angle',0),'region_width':math.hypot(*_image.shape),
+        'region_height':data.get('slit_width',30),'region_x':data.get('slit_x',roi['center_x']),
+        'region_y':data.get('slit_y',roi['center_y'])},roi)
 
 
 def experimental_modes(data, k0a, max_angle, count, method):
@@ -464,6 +519,8 @@ def experimental_modes(data, k0a, max_angle, count, method):
 
 def analyse_image(data, progress=lambda *_: None):
     started = time.perf_counter()
+    if 'source_palette' in data:
+        decode_image(data)
     roi = roi_values(data)
     wavelength = number(data, 'wavelength_nm', 350, 2000, 800)
     radius_um = number(data, 'radius_um', 5, 500, 150)
@@ -473,7 +530,7 @@ def analyse_image(data, progress=lambda *_: None):
     method = data.get('fit_mode', 'auto' if data.get('coherent', False) else 'single')
     if method not in ('single', 'auto', 'selected'):
         raise ValueError('Unknown experimental analysis method.')
-    mask, mask_config = slit_mask(data, roi)
+    mask, mask_config = (analysis_mask(data,roi) if 'region_enabled' in data else slit_mask(data,roi))
     k0a = 2*math.pi * radius_um*1000/wavelength
     modes, orientations = experimental_modes(data, k0a, max_angle, count, method)
     if not modes:
@@ -481,13 +538,13 @@ def analyse_image(data, progress=lambda *_: None):
     samples = max(128 if mask is not None else 80, math.ceil(4*max(m.u_seed for m in modes)/math.pi+1))
     if samples > 256:
         raise ValueError('The selected mode orders require more than 256 samples. Reduce the indices.')
-    progress(.03, 'Sampling the ROI and slit')
+    progress(.03, 'Sampling the selected rectangle and waveguide region')
     processed = preprocess_experimental_image(_image, background_percentile=background,
                                                clip_percentile=100, valid_mask=mask)
     grid, sampled, visible = _sample_camera_on_grid(processed, **roi, samples=samples, valid_mask=mask)
     coverage = float(visible.sum()/grid.core_mask.sum())
     if coverage < .01 or visible.sum() < 128:
-        raise ValueError('Too little of the ROI remains for fitting. Widen or reposition the slit / ROI.')
+        raise ValueError('Too little of the ROI remains for fitting. Enlarge or reposition the rectangle / ROI.')
     target = sampled[visible]
     if np.max(target)-np.min(target) < 1e-10:
         raise ValueError('No resolvable intensity structure in the selected region.')
@@ -560,7 +617,8 @@ def analyse_image(data, progress=lambda *_: None):
     display = np.where(visible, sampled, np.nan)
     progress(1, 'Analysis complete')
     return {'rows': rows, 'diagnostics': diagnostics, 'coverage': coverage,
-            'config': {**roi, **mask_config, 'wavelength_nm': wavelength, 'radius_um': radius_um,
+            'palette_decoding': palette_diagnostics(mask),
+            'config': {**roi, **mask_config, **_color_config, 'wavelength_nm': wavelength, 'radius_um': radius_um,
                        'max_angle': max_angle, 'catalogue': count, 'background': background,
                        'fit_mode': method, 'fit_terms': data.get('fit_terms', []) if method == 'selected' else [],
                        'require_center': bool(data.get('require_center', False))},
@@ -653,6 +711,7 @@ def dispatch(action, data=None, raw=None, progress=lambda *_: None):
     data = data or {}
     functions = {'simulate': lambda: simulate(data, progress), 'slice': lambda: slice_field(data),
                  'image': lambda: load_image(data, raw), 'demo_image': demo_image,
+                 'decode_image': lambda: decode_image(data),
                  'refine': lambda: refine_roi(data), 'analyse': lambda: analyse_image(data, progress),
                  'mode_lab': lambda: mode_lab(data, progress)}
     if action not in functions:

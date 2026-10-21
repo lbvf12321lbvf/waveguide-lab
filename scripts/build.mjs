@@ -6,7 +6,7 @@ const out = join(root, 'dist');
 await mkdir(out, {recursive: true});
 // Explicit publish allowlist: no scientific source data, reports, credentials or history.
 const files = ['index.html', 'styles.css', 'app.js', 'worker.js', 'utils.js', 'charts.js', 'storage.js',
-               'beam.js','modes.js','slit.js','fit-basis.js','theory.html','theory.css','theory.js','assets/theory.md',
+               'beam.js','modes.js','palette.js','palettes.js','assets/matplotlib-LICENSE.txt','slit.js','fit-basis.js','theory.html','theory.css','theory.js','assets/theory.md',
                'assets/references.json','assets/icon.svg', 'assets/example.json'];
 const python = [];
 async function walk(dir) {

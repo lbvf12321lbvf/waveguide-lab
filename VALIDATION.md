@@ -46,3 +46,13 @@ Slit tests recover the known HE_1,3 image through horizontal, vertical and 37° 
 Real Pyodide browser checks: default automatic selection uses five physical modes and reaches its target; a manual limit of two uses exactly two modes and reports the larger residual. Slit movement, edge-width drag, rotation, axis drawing and the vertical preset work on the image. The single-mode search through a 30° slit ranks HE_1,3 first. Adding it from the results and entering HE_1,2c manually yields a fit containing exactly two physical modes, with relative error about 0.0004 on the synthetic image. The reconstructed image respects the mask and the coefficient table displays relative amplitudes and phases.
 
 At a 390 px viewport, the document fits the 375 px content area without horizontal overflow; slit controls and selected-mode inputs stay within their panel. This is layout verification in Chromium, not a claim of performance testing on physical mobile devices. Intensity-only phase ambiguity and the distinction between coefficient amplitudes and power fractions remain explicit in the interface.
+
+## Finite rectangles and source-color intensities
+
+Replaced the infinite strip in the interface with a finite rectangle: both pairs of boundaries participate in the mask. Historical slit settings remain supported by the numerical adapter. The suite now contains **38 Python tests and 11 JavaScript tests**.
+
+New checks cover horizontal, vertical and rotated finite rectangles; exclusion of bright data beyond the rectangle ends; recovery of a known mode after white-to-red color encoding; white = zero and exact color endpoints; custom nonuniform intensity levels; nearest-color and interpolated decoding; reversal; invalid palettes; original RGB retention; decoding before spatial downsampling; and preservation of native 16-bit intensities. The five bundled scientific palettes pass RGB-to-intensity round trips within 0.005 on 8-bit colors. Eyedropper tests verify original pixel values and reject out-of-image clicks.
+
+Browser validation uses the user-supplied white-background, two-panel figure locally: selecting a source scale removes the false bright background, a finite rectangle selects one panel, and the original-color / decoded-intensity views remain available. Manual color levels and sampling a white source pixel work without changing the rectangle or circular ROI. The user's figure is not part of the public repository or deployment.
+
+The figure does not include its original intensity colorbar. This check verifies the decoding workflow and white-background handling; it does not establish calibrated physical intensities or a modal identification for that experimental figure.

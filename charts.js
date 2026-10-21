@@ -1,5 +1,5 @@
 import {format} from './utils.js';
-import {drawSlit} from './slit.js';
+import {drawRegion} from './slit.js';
 const stops = [[12,23,32],[36,52,110],[45,104,145],[48,160,151],[175,201,94],[250,231,88]];
 function rgb(t, phase=false) {
   if (phase) {
@@ -50,14 +50,18 @@ export function heatmap(canvas, values, size, options={}) {
   ctx.fillText(options.phase?'−π':'0',bx+13,y+side/2+60);
   canvas._map={x,y,w:side,h:side,size,values,radius,phase:options.phase};
 }
-export function imagePreview(canvas, data, roi) {
+export function imagePreview(canvas, data, roi, options={}) {
   const s=setup(canvas,Math.min(490,Math.max(320,canvas.clientWidth*.72)));if(!s)return;
   const {ctx,width,height}=s; const sw=data.meta.width,sh=data.meta.height;
   const scale=Math.min((width-40)/sw,(height-40)/sh),w=sw*scale,h=sh*scale,x=(width-w)/2,y=(height-h)/2;
   ctx.fillStyle='#0c1720';ctx.fillRect(0,0,width,height);ctx.imageSmoothingEnabled=false;
-  ctx.drawImage(bitmap(data.pixels,sw,sh,{invertY:false}),x,y,w,h);
+  if(options.source&&data.rgb){
+    const c=document.createElement('canvas');c.width=sw;c.height=sh;const cc=c.getContext('2d'),pixels=cc.createImageData(sw,sh);
+    for(let i=0;i<sw*sh;i++){pixels.data[i*4]=data.rgb[i*3];pixels.data[i*4+1]=data.rgb[i*3+1];pixels.data[i*4+2]=data.rgb[i*3+2];pixels.data[i*4+3]=255;}
+    cc.putImageData(pixels,0,0);ctx.drawImage(c,x,y,w,h);
+  }else ctx.drawImage(bitmap(data.pixels,sw,sh,{invertY:false}),x,y,w,h);
   const map={x,y,w,h,sourceW:sw,sourceH:sh,scale};
-  drawSlit(ctx,map,roi);
+  drawRegion(ctx,map,roi,options.editing);
   if(roi){ctx.strokeStyle='#e3ffb2';ctx.lineWidth=1.5;ctx.setLineDash([6,4]);ctx.beginPath();
     ctx.arc(x+roi.center_x*scale,y+roi.center_y*scale,roi.radius_px*scale,0,2*Math.PI);ctx.stroke();ctx.setLineDash([]);
     const cx=x+roi.center_x*scale,cy=y+roi.center_y*scale;ctx.beginPath();ctx.moveTo(cx-6,cy);ctx.lineTo(cx+6,cy);ctx.moveTo(cx,cy-6);ctx.lineTo(cx,cy+6);ctx.stroke();}

@@ -3,7 +3,8 @@ import {heatmap,imagePreview,lineChart} from './charts.js';
 import {saveRun,runs} from './storage.js';
 import {setupBeamPreview} from './beam.js';
 import {setupModeLab} from './modes.js';
-import {setupSlitEditor} from './slit.js';
+import {setupRegionEditor} from './slit.js';
+import {setupPaletteEditor} from './palette.js';
 import {setupFitBasis} from './fit-basis.js';
 
 const $=id=>document.getElementById(id);
@@ -58,7 +59,7 @@ function setBusy(value){
   $('analyse-button').disabled=value||!currentImage;$('refine-button').disabled=value||!currentImage;
   $('z-range').disabled=value||!simulatedInWorker||!result||fieldView==='input';
   updateModeControls();
-  slitEditor.update();fitBasis.update();
+  regionEditor.update();fitBasis.update();paletteEditor.update();
 }
 async function withTask(message,job){
   if(busy)return;
@@ -105,7 +106,7 @@ function readForm(){
 }
 function readExp(){
   const data={};for(const el of expForm.elements){if(!el.name)continue;data[el.name]=el.type==='checkbox'?el.checked:el.name==='fit_mode'?el.value:Number(el.value);}
-  data.fit_terms=fitBasis.terms();return data;
+  data.fit_terms=fitBasis.terms();return {...data,...paletteEditor.read()};
 }
 function updateMaterialLabel(){
   const v=readForm();let key='custom';
@@ -257,14 +258,15 @@ $('close-history').onclick=()=>$('history-dialog').close();
 $('history-dialog').addEventListener('click',e=>{if(e.target===$('history-dialog')){const r=e.target.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)e.target.close();}});
 
 function applyImage(data){
+  if(data.source_rgb)data.rgb=Uint8Array.from(atob(data.source_rgb),c=>c.charCodeAt(0));
   currentImage=data;imageInWorker=true;experiment=null;$('experiment-results').hidden=true;
   for(const [key,value] of Object.entries(data.roi))expForm.elements.namedItem(key).value=value.toFixed(2);
-  slitEditor.reset(data);
+  paletteEditor.resetView();paletteEditor.applied();regionEditor.reset(data);
   $('image-name').textContent=data.meta.name+(data.meta.color_note?' · '+data.meta.color_note:'');
   $('image-dimensions').textContent=`${data.meta.width} × ${data.meta.height}`+(data.meta.scale<1?' · resized':'');
   $('image-empty').hidden=true;renderImage();updateScale();
 }
-function renderImage(){if(currentImage&&currentTab==='experiment')imagePreview($('image-canvas'),currentImage,readExp());}
+function renderImage(){if(currentImage&&currentTab==='experiment')imagePreview($('image-canvas'),currentImage,readExp(),{source:$('image-view').value==='source',editing:regionEditor.isActive()});}
 function updateScale(){const data=readExp();$('pixel-scale').textContent=`Scale: ${format(data.radius_um/data.radius_px,3)} µm/px of the working image`;
   if(experiment){$('fit-note').textContent='ROI or settings changed. Run the analysis again to update the result.';}}
 expForm.addEventListener('input',()=>{updateScale();renderImage();});
@@ -273,7 +275,7 @@ $('image-file').onchange=async e=>{
   if(file.size>32*1024**2){toast('File exceeds 32 MB. Reduce image size or frame count.');e.target.value='';return;}
   withTask('Opening image',async()=>{
     const buffer=await file.arrayBuffer();const mode=$('spe-mode').value;
-    const data=await request('image',{name:file.name,spe_mode:mode},buffer);
+    const data=await request('image',{name:file.name,spe_mode:mode,...paletteEditor.read()},buffer);
     imageBuffer=buffer;imageName=file.name;imageMode=mode;imageSource='file';applyImage(data);
   });e.target.value='';
 };
@@ -281,14 +283,23 @@ $('demo-image').onclick=()=>withTask('Preparing synthetic image',async()=>{
   const data=await request('demo_image');imageSource='demo';imageBuffer=null;applyImage(data);
 });
 async function ensureImage(){
-  if(imageInWorker)return;
-  if(imageSource==='demo')await request('demo_image');
-  else if(imageBuffer)await request('image',{name:imageName,spe_mode:imageMode},imageBuffer);
-  else throw new Error('Open the image again.');
-  imageInWorker=true;
+  if(!imageInWorker){
+    if(imageSource==='demo')await request('demo_image');
+    else if(imageBuffer)await request('image',{name:imageName,spe_mode:imageMode,...paletteEditor.read()},imageBuffer);
+    else throw new Error('Open the image again.');
+    imageInWorker=true;
+  }
+  if(paletteEditor.dirty()){
+    const data=await request('decode_image',paletteEditor.read());
+    currentImage={...currentImage,...data};paletteEditor.applied();renderImage();updateScale();
+  }
+}
+async function applyPalette(){
+  if(!expForm.reportValidity()||!currentImage)return;
+  withTask('Decoding source colors',async()=>{await ensureImage();$('image-view').value='intensity';renderImage();});
 }
 $('image-canvas').onclick=e=>{
-  if(!currentImage||busy||slitEditor.isActive())return;const m=$('image-canvas')._map;if(!m)return;const r=e.currentTarget.getBoundingClientRect();
+  if(!currentImage||busy)return;if(paletteEditor.pick(e,$('image-canvas')))return;if(regionEditor.isActive())return;const m=$('image-canvas')._map;if(!m)return;const r=e.currentTarget.getBoundingClientRect();
   const x=(e.clientX-r.left-m.x)/m.scale,y=(e.clientY-r.top-m.y)/m.scale;
   if(x<0||y<0||x>=m.sourceW||y>=m.sourceH)return;
   if(e.shiftKey){const data=readExp();expForm.elements.namedItem('radius_px').value=Math.max(5,Math.hypot(x-data.center_x,y-data.center_y)).toFixed(2);}
@@ -296,7 +307,7 @@ $('image-canvas').onclick=e=>{
   updateScale();renderImage();
 };
 $('image-canvas').onkeydown=e=>{
-  if(!currentImage||busy||slitEditor.isActive()||!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key))return;e.preventDefault();
+  if(!currentImage||busy||regionEditor.isActive()||paletteEditor.isPicking()||!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key))return;e.preventDefault();
   const key=['ArrowLeft','ArrowRight'].includes(e.key)?'center_x':'center_y';const sign=['ArrowLeft','ArrowUp'].includes(e.key)?-1:1;
   const el=expForm.elements.namedItem(key);el.value=Math.max(0,Math.min((key==='center_x'?currentImage.meta.width:currentImage.meta.height)-1,Number(el.value)+sign*(e.shiftKey?10:1))).toFixed(2);
   updateScale();renderImage();
@@ -313,7 +324,7 @@ expForm.onsubmit=e=>{e.preventDefault();if(!expForm.reportValidity()||!currentIm
 };
 function renderExperiment(){
   if(!experiment||currentTab!=='experiment')return;const ex=experiment;$('experiment-results').hidden=false;
-  $('experiment-summary').textContent=`Used: ${format(ex.coverage*100,1)}% of ROI${ex.config.slit_enabled?' · slit applied':''} · ${ex.diagnostics.catalogue_modes} modes · ${format(ex.seconds,1)} s`;
+  $('experiment-summary').textContent=`Used: ${format(ex.coverage*100,1)}% of ROI${ex.config.region_enabled?' · rectangle applied':''} · ${ex.diagnostics.catalogue_modes} modes · ${format(ex.seconds,1)} s`;
   $('experiment-rows').replaceChildren();for(const row of ex.rows){const tr=document.createElement('tr');
     for(const v of [row.name,format(row.similarity_score,3),format(row.correlation_2d,3),format(row.modal_angle_deg,4),format(row.relative_l2_2d,3)]){const td=document.createElement('td');if(!tr.children.length){const button=document.createElement('button');button.className='mode-link';button.textContent=v;button.onclick=()=>inspectMode(row.name,{...readForm(),diameter_um:ex.config.radius_um*2,wavelength_nm:ex.config.wavelength_nm});td.append(button);}else td.textContent=v;tr.append(td);}
     const td=document.createElement('td'),add=document.createElement('button');add.className='text-button';add.textContent='Add to fit';add.onclick=()=>{if(!busy)fitBasis.addName(row.name);};td.append(add);tr.append(td);$('experiment-rows').append(tr);}
@@ -335,7 +346,8 @@ $('experiment-export').onclick=()=>experiment&&download('waveguide-experiment.js
 
 let resizeTimer;window.addEventListener('resize',()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>{renderField();renderPower();renderImage();renderExperiment();},120);});
 window.addEventListener('error',e=>{if(!previewError){previewError=true;toast('Interface error: '+e.message+'. Reload the page; saved calculations remain in history.');}});
-const slitEditor=setupSlitEditor({canvas:$('image-canvas'),form:expForm,getImage:()=>currentImage,isBusy:()=>busy,onChange:()=>{updateScale();renderImage();}});
+const regionEditor=setupRegionEditor({canvas:$('image-canvas'),form:expForm,getImage:()=>currentImage,isBusy:()=>busy,isPicking:()=>paletteEditor.isPicking(),onChange:()=>{updateScale();renderImage();}});
+const paletteEditor=setupPaletteEditor({getImage:()=>currentImage,isBusy:()=>busy,onChange:()=>{updateScale();},onApply:applyPalette,onPickChange:()=>{regionEditor.update();renderImage();}});
 const fitBasis=setupFitBasis({form:expForm,isBusy:()=>busy,onChange:()=>{updateScale();renderImage();},onError:toast});
 drawBeam=setupBeamPreview(form,readForm,markDirty);
 setForm(DEFAULTS);setBusy(false);example();

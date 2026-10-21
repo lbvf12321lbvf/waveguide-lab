@@ -1,19 +1,30 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {insideSlit} from '../slit.js';
-const roi={slit_enabled:true,slit_x:100,slit_y:80,slit_width:20,slit_angle:0};
-test('slit retains only the horizontal or vertical band, including its boundary',()=>{
-  for(const [x,y,expected] of [[0,80,true],[150,90,true],[100,91,false],[100,69,false]]){
-    assert.equal(insideSlit(x,y,roi),expected);
-  }
-  assert.equal(insideSlit(109,0,{...roi,slit_angle:90}),true);
-  assert.equal(insideSlit(111,80,{...roi,slit_angle:90}),false);
+import {insideRegion} from '../slit.js';
+import {sourceColorAt} from '../palette.js';
+const roi={region_enabled:true,region_x:100,region_y:80,region_width:60,region_height:20,region_angle:0};
+test('rectangle excludes both side boundaries and finite ends',()=>{
+  assert.equal(insideRegion(100,80,roi),true);
+  assert.equal(insideRegion(130,90,roi),true);
+  assert.equal(insideRegion(131,80,roi),false);
+  assert.equal(insideRegion(100,91,roi),false);
+  assert.equal(insideRegion(70,70,roi),true);
 });
-test('oblique slit follows its translated centre and angle in camera coordinates',()=>{
-  const tilted={...roi,slit_angle:45};
-  assert.equal(insideSlit(150,130,tilted),true);
-  assert.equal(insideSlit(120,60,tilted),false);
-  assert.equal(insideSlit(150,130,{...tilted,slit_x:130}),false);
-  assert.equal(insideSlit(150,130,{...tilted,slit_angle:-135}),true);
-  assert.equal(insideSlit(120,60,{...tilted,slit_enabled:false}),true);
+test('rotating a rectangle rotates both pairs of boundaries',()=>{
+  const turned={...roi,region_angle:90};
+  assert.equal(insideRegion(100,109,turned),true);
+  assert.equal(insideRegion(129,80,turned),false);
+  const oblique={...roi,region_angle:45};
+  assert.equal(insideRegion(120,100,oblique),true);
+  assert.equal(insideRegion(125,105,oblique),false);
+  assert.equal(insideRegion(120,60,oblique),false);
+  assert.equal(insideRegion(0,0,{...roi,region_enabled:false}),true);
+});
+test('eyedropper reads original RGB pixels and rejects clicks outside the frame',()=>{
+  const rgb=new Uint8Array([255,255,255,255,0,0,0,255,0,0,0,255]);
+  assert.equal(sourceColorAt(rgb,2,2,0,0),'#ffffff');
+  assert.equal(sourceColorAt(rgb,2,2,1,0),'#ff0000');
+  assert.equal(sourceColorAt(rgb,2,2,0,1),'#00ff00');
+  assert.equal(sourceColorAt(rgb,2,2,-1,0),null);
+  assert.equal(sourceColorAt(rgb,2,2,2,0),null);
 });
