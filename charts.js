@@ -1,4 +1,5 @@
 import {format} from './utils.js';
+import {drawSlit} from './slit.js';
 const stops = [[12,23,32],[36,52,110],[45,104,145],[48,160,151],[175,201,94],[250,231,88]];
 function rgb(t, phase=false) {
   if (phase) {
@@ -55,10 +56,12 @@ export function imagePreview(canvas, data, roi) {
   const scale=Math.min((width-40)/sw,(height-40)/sh),w=sw*scale,h=sh*scale,x=(width-w)/2,y=(height-h)/2;
   ctx.fillStyle='#0c1720';ctx.fillRect(0,0,width,height);ctx.imageSmoothingEnabled=false;
   ctx.drawImage(bitmap(data.pixels,sw,sh,{invertY:false}),x,y,w,h);
+  const map={x,y,w,h,sourceW:sw,sourceH:sh,scale};
+  drawSlit(ctx,map,roi);
   if(roi){ctx.strokeStyle='#e3ffb2';ctx.lineWidth=1.5;ctx.setLineDash([6,4]);ctx.beginPath();
     ctx.arc(x+roi.center_x*scale,y+roi.center_y*scale,roi.radius_px*scale,0,2*Math.PI);ctx.stroke();ctx.setLineDash([]);
     const cx=x+roi.center_x*scale,cy=y+roi.center_y*scale;ctx.beginPath();ctx.moveTo(cx-6,cy);ctx.lineTo(cx+6,cy);ctx.moveTo(cx,cy-6);ctx.lineTo(cx,cy+6);ctx.stroke();}
-  canvas._map={x,y,w,h,sourceW:sw,sourceH:sh,scale};
+  canvas._map=map;
 }
 export function lineChart(canvas, series, options={}) {
   const s=setup(canvas,options.height||170);if(!s)return;

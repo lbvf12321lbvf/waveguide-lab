@@ -1,6 +1,6 @@
 export const DEFAULTS = Object.freeze({wavelength_nm:800,diameter_um:300,waist_um:45,theta_deg:0,
   azimuth_deg:0,offset_um:0,offset_azimuth_deg:0,polarization:'x',epsilon_real:-31.021,epsilon_imag:.40948,
-  max_modes:32,samples:96,length_cm:40,families:'all'});
+  mode_selection:'auto',max_modes:32,samples:96,length_cm:40,families:'all'});
 export function format(value, digits=2) {
   return Number.isFinite(value) ? value.toLocaleString('en-US',{maximumFractionDigits:digits}) : '—';
 }
@@ -35,7 +35,7 @@ export function fieldShape(field) {
 }
 export function validateProject(p) {
   if (p?.schema !== 'waveguide-lab/1' || !p.result || !p.result.config || !fieldShape(p.result.field) ||
-      !fieldShape(p.result.input) || !Array.isArray(p.result.rows) || p.result.rows.length>256 ||
+      !fieldShape(p.result.input) || !Array.isArray(p.result.rows) || p.result.rows.length>12000 ||
       !p.result.rows.every(r=>/^(HE|EH|TE|TM)_\d+,\d+[cs]?$/.test(r.name) && typeof r.weight==='number' && Number.isFinite(r.weight)) ||
       !p.result.metrics || !Array.isArray(p.result.warnings) || !p.result.warnings.every(w=>typeof w==='string') ||
       !Array.isArray(p.result.power?.z_cm) || p.result.power.z_cm.length>500 ||
@@ -43,8 +43,9 @@ export function validateProject(p) {
       !p.result.power.z_cm.every(Number.isFinite) || !p.result.power.fraction.every(Number.isFinite)) {
     throw new Error('This is not a valid Waveguide Lab calculation file.');
   }
+  const config={...p.result.config,mode_selection:p.result.config.mode_selection??'manual'};
   for (const [key,value] of Object.entries(DEFAULTS)) {
-    const v = p.result.config[key];
+    const v = config[key];
     if (typeof value==='number' ? !Number.isFinite(v) : typeof v!=='string') throw new Error('Invalid calculation parameters.');
   }
   for (const key of ['coupled','transmission','residual','physical_modes','profiles','rank','fallback_count','seconds']) {
@@ -55,7 +56,8 @@ export function validateProject(p) {
     if (['angle_deg','neff','alpha_power_per_m','coefficient_real','coefficient_imag'].some(k=>!Number.isFinite(row[k]))) throw new Error('Invalid modal coefficients.');
   }
   if (p.result.config.length_cm<=0 || p.result.config.length_cm>200) throw new Error('Invalid waveguide length.');
-  return p.result;
+  if(!['auto','manual'].includes(config.mode_selection)||!Number.isInteger(config.max_modes)||config.max_modes<1||config.max_modes>6000)throw new Error('Invalid mode selection settings.');
+  return {...p.result,config};
 }
 export function project(result) { return {schema:'waveguide-lab/1',created_at:new Date().toISOString(),result}; }
 export function download(name, data, type='application/json') {

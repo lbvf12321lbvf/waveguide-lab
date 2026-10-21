@@ -32,10 +32,13 @@ from waveguide_core.experiment import (
 )
 
 VERSION = '1.0.0'
+AUTO_RESIDUAL_TARGET = 0.001
+WORKING_MEMORY_MB = 650
+MAX_CANDIDATES = 6000
 DEFAULTS = dict(wavelength_nm=800, diameter_um=300, waist_um=45,
                 theta_deg=0, azimuth_deg=0, offset_um=0, offset_azimuth_deg=0,
                 polarization='x', epsilon_real=-31.021, epsilon_imag=0.40948,
-                max_modes=32, samples=96, length_cm=40, families='all')
+                mode_selection='auto', max_modes=32, samples=96, length_cm=40, families='all')
 _simulation = None
 _image = None
 _image_meta = None
@@ -73,15 +76,20 @@ def number(data, key, low, high, default=None, integer=False):
 def validate(data):
     d = dict(DEFAULTS)
     d.update({k: v for k, v in data.items() if k in DEFAULTS})
+    # Older saved calculations specified a manual limit without a selection mode.
+    if 'mode_selection' not in data and 'max_modes' in data:
+        d['mode_selection'] = 'manual'
     bounds = {'wavelength_nm': (350, 2000), 'diameter_um': (10, 1000),
               'waist_um': (1, 1000), 'theta_deg': (0, 30), 'azimuth_deg': (-180, 180),
               'offset_um': (0, 500), 'offset_azimuth_deg': (-180, 180),
               'epsilon_real': (-1000, -0.1), 'epsilon_imag': (0.00001, 1000),
-              'max_modes': (4, 128), 'samples': (48, 256), 'length_cm': (0.01, 200)}
+              'max_modes': (1, MAX_CANDIDATES), 'samples': (48, 256), 'length_cm': (0.01, 200)}
     for k, limits in bounds.items():
         d[k] = number(d, k, *limits, integer=k in ('max_modes', 'samples'))
     if d['polarization'] not in ('x', 'y', 'circular') or d['families'] not in ('all', 'he'):
         raise ValueError('Unknown polarization or mode family.')
+    if d['mode_selection'] not in ('auto', 'manual'):
+        raise ValueError('Unknown mode selection method.')
     if d['offset_um'] >= d['diameter_um'] / 2:
         raise ValueError('The beam centre must be inside the waveguide.')
     if d['waist_um'] < 4 * d['diameter_um'] / (d['samples'] - 1):
@@ -90,12 +98,38 @@ def validate(data):
     if d['samples'] < phase_samples:
         raise ValueError(f'This launch angle requires at least {math.ceil(phase_samples)} samples across the diameter. '
                          'Increase the grid or reduce angle / diameter. The web limit is 256.')
-    # Conservative upper bound for profiles + complex LAPACK workspace.
-    estimated_mb = d['samples'] ** 2 * 2 * d['max_modes'] * 16 * 5 / 2**20
-    if estimated_mb > 650:
-        raise ValueError('This grid and mode count require too much browser memory. '
-                         'Reduce the mode count or grid size.')
     return d
+
+
+def modal_memory_mb(samples, profile_count):
+    """Conservative estimate: both field components, LAPACK copies and Gram matrix."""
+    return (samples**2 * 2 * profile_count * 16 * 5 + 32 * profile_count**2) / 2**20 + 32
+
+
+def mode_pool(eligible, roots, d):
+    """Keep ranking order; automatic mode may stop at resource bounds explicitly."""
+    automatic = d['mode_selection'] == 'auto'
+    candidates = eligible if automatic else eligible[:d['max_modes']]
+    resolved = [s for s in candidates if math.ceil(4 * roots[s.name] / math.pi + 1) <= d['samples']]
+    if not automatic and len(resolved) != len(candidates):
+        needed = max(math.ceil(4 * roots[s.name] / math.pi + 1) for s in candidates)
+        raise ValueError(f'The requested modes need at least {needed} grid samples. '
+                         'Increase resolution or reduce the manual mode limit.')
+    pool, profiles = [], 0
+    for spec in resolved:
+        next_profiles = profiles + (1 if spec.family in ('TE', 'TM') else 2)
+        if modal_memory_mb(d['samples'], next_profiles) > WORKING_MEMORY_MB:
+            if not automatic:
+                raise ValueError(f'The requested basis exceeds the {WORKING_MEMORY_MB} MiB working-memory budget. '
+                                 f'At this grid, the first {len(pool)} modes fit. Reduce the manual mode limit.')
+            break
+        pool.append(spec)
+        profiles = next_profiles
+    if not pool:
+        raise ValueError('No excited modes can be resolved on this grid. Increase grid resolution.')
+    reason = ('memory_limit' if len(pool) < len(resolved) else
+              'grid_limit' if len(resolved) < len(candidates) else 'candidate_limit')
+    return pool, reason, len(candidates) - len(resolved)
 
 
 def physics(d):
@@ -133,41 +167,58 @@ def simulate(data, progress=lambda *_: None):
     specs, _, roots, window = angular_candidate_mode_specs(
         cfg, beam, min_power_fraction=1e-6, include_eh=d['families'] == 'all',
         include_te_tm=d['families'] == 'all')
-    if len(specs) > 6000:
+    if len(specs) > MAX_CANDIDATES:
         raise ValueError('The catalogue is too large for the browser. Reduce the launch angle or offset.')
     # Resolve both radial oscillations and the maximum angular Fourier order.
     nr = min(512, max(96, int(math.ceil(window.u_max * 1.2))))
     na = min(2048, max(192, 4 * (window.q_max + 1)))
-    selected, rough, _ = estimate_excitation_polar_quadrature(
+    eligible, rough, _ = estimate_excitation_polar_quadrature(
         cfg, beam, specs, roots, radial_samples=nr, angular_samples=na,
-        min_power_fraction=1e-7, max_modes=d['max_modes'], progress_every=None,
+        min_power_fraction=1e-7, max_modes=None, progress_every=None,
         progress_callback=lambda f, _: progress(0.07 + 0.20*f, 'Estimating modal excitation'))
-    if not selected:
+    if not eligible:
         raise ValueError('No excited modes were found in the selected basis.')
-    highest_u = max(roots[s.name] for s in selected)
-    needed_grid = math.ceil(4 * highest_u / math.pi + 1)
-    if needed_grid > d['samples']:
-        raise ValueError(f'The selected modes require at least {needed_grid} grid samples. Increase the resolution.')
-    modes = []
-    fallback = []
+    pool, pool_limit, excluded_grid = mode_pool(eligible, roots, d)
+    automatic = d['mode_selection'] == 'auto'
+    estimates = {r['mode']: r['estimated_power_fraction'] for r in rough}
+    cumulative = np.cumsum([estimates[s.name] for s in pool])
+    # Overlap weights only seed the basis size; the full least-squares residual
+    # controls stopping, since approximate profiles need not be orthogonal.
+    count = min(len(pool), max(2, int(np.searchsorted(cumulative, .9 * cumulative[-1])) + 1)) if automatic else len(pool)
+    modes, profiles, fallback, passes = [], [], [], []
     original_quality = {}
-    for i, spec in enumerate(selected):
-        progress(0.28 + 0.32 * i / len(selected), f'Mode {i+1} of {len(selected)} · {spec.name}')
-        mode = solve_mode(spec.family, spec.n, spec.m, cfg)
-        original_quality[mode.name] = {'converged': mode.converged, 'residual': mode.residual}
-        if not mode.converged:
-            fallback.append(mode.name)
-            beta = math.sqrt(max(0, cfg.k0**2 - (mode.u_seed / cfg.radius)**2))
-            alpha = _marcatili_amplitude_guess(mode.family, mode.u_seed, cfg)
-            mode = replace(mode, gamma=complex(beta, alpha), converged=True)
-        modes.append(mode)
-    progress(0.62, 'Vector field decomposition')
     grid = make_grid(cfg.radius, d['samples'])
     input_field = gaussian_beam_field(grid, cfg, beam)
-    profiles = build_profiles(modes, grid, cfg)
-    result = decompose_field(input_field, profiles, grid, rcond=1e-9)
-    if not np.all(np.isfinite(result.coefficients)):
-        raise ValueError('The decomposition is unstable. Change the settings or reduce the mode count.')
+    while True:
+        for spec in pool[len(modes):count]:
+            progress(.28 + .32 * len(modes) / len(pool), f'Solving mode {len(modes)+1} · {spec.name}')
+            mode = solve_mode(spec.family, spec.n, spec.m, cfg)
+            original_quality[mode.name] = {'converged': mode.converged, 'residual': mode.residual}
+            if not mode.converged:
+                fallback.append(mode.name)
+                beta = math.sqrt(max(0, cfg.k0**2 - (mode.u_seed / cfg.radius)**2))
+                alpha = _marcatili_amplitude_guess(mode.family, mode.u_seed, cfg)
+                mode = replace(mode, gamma=complex(beta, alpha), converged=True)
+            modes.append(mode)
+            profiles.extend(build_profiles([mode], grid, cfg))
+        progress(.28 + .32 * len(modes) / len(pool), f'Checking input projection · {len(modes)} modes')
+        result = decompose_field(input_field, profiles, grid, rcond=1e-9)
+        if not np.all(np.isfinite(result.coefficients)):
+            raise ValueError('The decomposition is unstable. Change the settings or reduce the mode count.')
+        residual_fraction = result.residual_power / result.input_power
+        passes.append({'modes': len(modes), 'residual': residual_fraction})
+        if not automatic or residual_fraction <= AUTO_RESIDUAL_TARGET or count == len(pool):
+            break
+        count = min(len(pool), max(count + 4, math.ceil(count * 1.6)))
+        del result
+    selection = {'method': d['mode_selection'], 'eligible_modes': len(eligible),
+                 'available_modes': len(pool), 'excluded_grid_modes': excluded_grid,
+                 'requested_limit': None if automatic else d['max_modes'],
+                 'target_residual': AUTO_RESIDUAL_TARGET if automatic else None,
+                 'target_met': residual_fraction <= AUTO_RESIDUAL_TARGET if automatic else None,
+                 'stop_reason': ('target_reached' if residual_fraction <= AUTO_RESIDUAL_TARGET else pool_limit)
+                                if automatic else 'manual_limit',
+                 'estimated_memory_mb': modal_memory_mb(d['samples'], len(profiles)), 'passes': passes}
     weights = np.abs(result.coefficients)**2
     weight_sum = max(float(np.sum(weights)), 1e-300)
     rows = []
@@ -193,6 +244,11 @@ def simulate(data, progress=lambda *_: None):
     powers = np.real(np.einsum('zi,ij,zj->z', coefficients_z.conj(), gram, coefficients_z)) / result.input_power
     rank = int(np.sum(result.singular_values > result.singular_values[0] * 1e-9))
     warnings = []
+    if automatic and not selection['target_met']:
+        reason = {'memory_limit': 'working-memory budget', 'grid_limit': 'grid resolution',
+                  'candidate_limit': 'available excited modes'}[pool_limit]
+        warnings.append(f'Automatic selection stopped at the {reason}: residual {residual_fraction*100:.3f}% '
+                        f'exceeds the {AUTO_RESIDUAL_TARGET*100:g}% target. Check grid and basis convergence.')
     if fallback:
         warnings.append(f'{len(fallback)} modes: complex root did not converge; propagation uses a Marcatili estimate. See the table labels.')
     residual_fraction = result.residual_power / result.input_power
@@ -209,7 +265,7 @@ def simulate(data, progress=lambda *_: None):
                            'physical_modes': len(modes), 'profiles': len(profiles), 'rank': rank,
                            'fallback_count': len(fallback), 'candidates': len(specs),
                            'seconds': time.perf_counter()-started},
-               'warnings': warnings, 'power': {'z_cm': zs * 100, 'fraction': powers},
+               'selection': selection, 'warnings': warnings, 'power': {'z_cm': zs * 100, 'fraction': powers},
                'input': field_payload(input_field, grid),
                'field': slice_field({'z_cm': d['length_cm']}),
                'singular_values': result.singular_values}
@@ -337,28 +393,57 @@ def refine_roi(data):
     return {'roi': dict(center_x=cx, center_y=cy, radius_px=radius), 'quality': quality}
 
 
-def analyse_image(data, progress=lambda *_: None):
-    started = time.perf_counter()
-    roi = roi_values(data)
-    wavelength = number(data, 'wavelength_nm', 350, 2000, 800)
-    radius_um = number(data, 'radius_um', 5, 500, 150)
-    max_angle = number(data, 'max_angle', .1, 30, 5)
-    count = number(data, 'catalogue', 20, 1500, 300, integer=True)
-    background = number(data, 'background', 0, 30, 0)
-    progress(.03, 'Sampling the ROI and radial profile')
-    processed = preprocess_experimental_image(_image, background_percentile=background, clip_percentile=100)
-    grid, sampled, visible = _sample_camera_on_grid(processed, **roi, samples=80)
-    coverage = float(visible.sum()/grid.core_mask.sum())
-    if coverage < .05:
-        raise ValueError('Less than 5% of the ROI is visible.')
-    target = sampled[visible]
-    if np.max(target)-np.min(target) < 1e-10:
-        raise ValueError('No resolvable intensity structure in the selected region.')
-    radial, _ = polar_diagnostics(processed, **roi)
-    k0a = 2*math.pi * radius_um*1000/wavelength
+def slit_mask(data, roi):
+    height, width = _image.shape
+    enabled = data.get('slit_enabled', False)
+    if not isinstance(enabled, bool):
+        raise ValueError('Invalid slit setting.')
+    if not enabled:
+        return None, {'slit_enabled': False}
+    angle = number(data, 'slit_angle', -180, 180, 0)
+    band_width = number(data, 'slit_width', 1, math.hypot(width, height), max(5, roi['radius_px']*.2))
+    x = number(data, 'slit_x', 0, width-1, roi['center_x'])
+    y = number(data, 'slit_y', 0, height-1, roi['center_y'])
+    yy, xx = np.indices(_image.shape, dtype=float)
+    angle_rad = math.radians(angle)
+    distance = -(xx-x)*math.sin(angle_rad) + (yy-y)*math.cos(angle_rad)
+    mask = np.abs(distance) <= band_width/2
+    if mask.sum() < 32:
+        raise ValueError('Too few pixels remain inside the slit. Increase its width or move it onto the image.')
+    return mask, dict(slit_enabled=True, slit_angle=angle, slit_width=band_width, slit_x=x, slit_y=y)
+
+
+def experimental_modes(data, k0a, max_angle, count, method):
+    if method == 'selected':
+        terms = data.get('fit_terms')
+        if not isinstance(terms, list) or not 1 <= len(terms) <= 6:
+            raise ValueError('Choose between 1 and 6 modes for the selected-mode fit.')
+        modes, orientations, seen = [], {}, set()
+        for term in terms:
+            if not isinstance(term, dict):
+                raise ValueError('Invalid selected mode.')
+            family = term.get('family', 'HE')
+            if family not in ('HE', 'EH', 'TE', 'TM'):
+                raise ValueError('Unknown selected mode family.')
+            n = number(term, 'n', 0 if family in ('TE', 'TM') else 1,
+                       0 if family in ('TE', 'TM') else 30, integer=True)
+            m = number(term, 'm', 1, 60, integer=True)
+            orientation = term.get('orientation', 'both')
+            if orientation not in ('both', 'c', 's'):
+                raise ValueError('Unknown selected mode orientation.')
+            u = bessel_seed(family, n, m)
+            if u >= k0a:
+                raise ValueError(f'{family}_{n},{m} is outside the propagating range.')
+            mode = Mode(family, n, m, u, 1+0j, True, 0)
+            if mode.name in seen:
+                raise ValueError(f'{mode.name} is already in the selected basis.')
+            seen.add(mode.name)
+            modes.append(mode)
+            orientations[mode.name] = (('',) if family in ('TE', 'TM') else
+                                       ('c', 's') if orientation == 'both' else (orientation,))
+        return modes, orientations
     u_cap = min(k0a * math.sin(math.radians(max_angle)), 1.6*math.sqrt(2*count)+8)
     modes = []
-    # Preserve true radial root indices BEFORE filtering by angle.
     for q in range(int(u_cap)+1):
         roots = jn_zeros(q, max(8, math.ceil(u_cap/math.pi)+8))
         for m, u in enumerate(roots, start=1):
@@ -374,13 +459,44 @@ def analyse_image(data, progress=lambda *_: None):
             for family, n in families:
                 modes.append(Mode(family, n, m, float(u), 1+0j, True, 0))
     modes.sort(key=lambda mode: (mode.u_seed, mode.family))
-    modes = modes[:count]
+    return modes[:count], {}
+
+
+def analyse_image(data, progress=lambda *_: None):
+    started = time.perf_counter()
+    roi = roi_values(data)
+    wavelength = number(data, 'wavelength_nm', 350, 2000, 800)
+    radius_um = number(data, 'radius_um', 5, 500, 150)
+    max_angle = number(data, 'max_angle', .1, 30, 5)
+    count = number(data, 'catalogue', 20, 1500, 300, integer=True)
+    background = number(data, 'background', 0, 30, 0)
+    method = data.get('fit_mode', 'auto' if data.get('coherent', False) else 'single')
+    if method not in ('single', 'auto', 'selected'):
+        raise ValueError('Unknown experimental analysis method.')
+    mask, mask_config = slit_mask(data, roi)
+    k0a = 2*math.pi * radius_um*1000/wavelength
+    modes, orientations = experimental_modes(data, k0a, max_angle, count, method)
     if not modes:
         raise ValueError('No modes in the selected range. Increase the maximum angle.')
+    samples = max(128 if mask is not None else 80, math.ceil(4*max(m.u_seed for m in modes)/math.pi+1))
+    if samples > 256:
+        raise ValueError('The selected mode orders require more than 256 samples. Reduce the indices.')
+    progress(.03, 'Sampling the ROI and slit')
+    processed = preprocess_experimental_image(_image, background_percentile=background,
+                                               clip_percentile=100, valid_mask=mask)
+    grid, sampled, visible = _sample_camera_on_grid(processed, **roi, samples=samples, valid_mask=mask)
+    coverage = float(visible.sum()/grid.core_mask.sum())
+    if coverage < .01 or visible.sum() < 128:
+        raise ValueError('Too little of the ROI remains for fitting. Widen or reposition the slit / ROI.')
+    target = sampled[visible]
+    if np.max(target)-np.min(target) < 1e-10:
+        raise ValueError('No resolvable intensity structure in the selected region.')
+    radial, _ = polar_diagnostics(processed, **roi, valid_mask=mask)
     angles = {m.name: math.degrees(math.asin(m.u_seed/k0a)) for m in modes}
     ranked, diagnostics = _rank_single_mode_similarity(
-        modes, radial, grid, sampled, visible, angles, require_center_maximum=False,
-        progress=lambda f, _: progress(.15+.55*f, 'Comparing modes with the image'))
+        modes, radial, grid, sampled, visible, angles,
+        require_center_maximum=bool(data.get('require_center', False)) if method != 'selected' else False,
+        progress=lambda f, _: progress(.15+.55*f, 'Comparing modes inside the measured region'))
     top = ranked[:5]
     rows = [{**{k: v for k, v in row.items() if k != 'mode'}, 'name': row['mode'].name} for row in top]
     best = top[0]['mode']
@@ -388,43 +504,54 @@ def analyse_image(data, progress=lambda *_: None):
     prediction = np.abs(field.Ex)**2 + np.abs(field.Ey)**2
     prediction *= float(np.dot(prediction[visible], target)/max(np.dot(prediction[visible], prediction[visible]), 1e-300))
     fit_meta = None
-    if bool(data.get('coherent', False)):
-        progress(.72, 'Coherent fit · three initial guesses')
-        # Up to four radial branches, both orientations, no forced unique-phase claim.
-        selected = []
-        signatures = set()
-        for item in ranked:
-            m = item['mode']
-            signature = (round(m.u_seed, 9), 0 if m.family == 'HE' and m.n == 1 else m.family)
-            if signature not in signatures:
-                selected.append(m)
-                signatures.add(signature)
-            if len(selected) == 4:
-                break
-        fields = []
-        names = []
+    if method in ('auto', 'selected'):
+        progress(.72, 'Fitting selected fields · three initial guesses')
+        if method == 'selected':
+            selected = modes
+        else:
+            selected, signatures = [], set()
+            for item in ranked:
+                m = item['mode']
+                signature = (round(m.u_seed, 9), 0 if m.family == 'HE' and m.n == 1 else m.family)
+                if signature not in signatures:
+                    selected.append(m)
+                    signatures.add(signature)
+                if len(selected) == 4:
+                    break
+        fields, names, normalizations = [], [], []
         for m in selected:
-            for orientation in (('',) if m.family in ('TE', 'TM') else ('c', 's')):
+            for orientation in orientations.get(m.name, ('',) if m.family in ('TE', 'TM') else ('c', 's')):
                 f = _profile_components(m, grid, 1., orientation)
                 scale = math.sqrt(float(np.mean((abs(f.Ex)**2+abs(f.Ey)**2)[visible])))
                 if scale > 1e-12:
                     fields.append((f.Ex.real/scale, f.Ey.real/scale))
                     names.append(m.name+orientation)
+                    normalizations.append(scale)
+        if not fields:
+            raise ValueError('The selected fields vanish inside the measured region.')
         ex = np.column_stack([f[0][visible] for f in fields])
         ey = np.column_stack([f[1][visible] for f in fields])
         fits = []
         for seed in range(3):
-            fits.append(_coherent_fit(ex, ey, target.copy(), max_nfev=60, seed=seed))
+            fits.append(_coherent_fit(ex, ey, target.copy(), max_nfev=120, seed=seed))
             progress(.74+.075*(seed+1), f'Coherent fit · {seed+1}/3')
         fits.sort(key=lambda fit: fit[2])
         coeff, _, residual, correlation = fits[0]
         fx = sum(c*f[0] for c, f in zip(coeff, fields))
         fy = sum(c*f[1] for c, f in zip(coeff, fields))
         prediction = abs(fx)**2+abs(fy)**2
-        prediction *= float(np.dot(prediction[visible], target)/max(np.dot(prediction[visible], prediction[visible]), 1e-300))
+        power_scale = float(np.dot(prediction[visible], target)/max(np.dot(prediction[visible], prediction[visible]), 1e-300))
+        prediction *= power_scale
+        coeff *= math.sqrt(max(power_scale, 0))
+        phase_ref = np.angle(coeff[int(np.argmax(abs(coeff)))])
+        coeff *= np.exp(-1j*phase_ref)
         fit_meta = {'residual': residual, 'correlation': correlation, 'profiles': names,
+                    'modes': [m.name for m in selected], 'method': method,
+                    'coefficients': [{'name': name, 'real': c.real, 'imaginary': c.imag,
+                                      'amplitude': abs(c), 'phase_deg': math.degrees(np.angle(c)),
+                                      'profile_rms': scale}
+                                     for name, c, scale in zip(names, coeff, normalizations)],
                     'restart_residuals': [f[2] for f in fits], 'restarts': 3}
-    predicted_radial = []
     rho = np.array([r['rho_over_radius'] for r in radial])
     order = 1 if best.family in ('TE', 'TM') else (best.n-1 if best.family == 'HE' else best.n+1)
     predicted_radial = jv(order, best.u_seed*rho)**2
@@ -433,13 +560,16 @@ def analyse_image(data, progress=lambda *_: None):
     display = np.where(visible, sampled, np.nan)
     progress(1, 'Analysis complete')
     return {'rows': rows, 'diagnostics': diagnostics, 'coverage': coverage,
-            'config': {**roi, 'wavelength_nm': wavelength, 'radius_um': radius_um, 'max_angle': max_angle,
-                       'catalogue': count, 'background': background, 'coherent': bool(data.get('coherent', False))},
-            'image_meta': _image_meta, 'size': 80, 'observed': display.ravel(),
+            'config': {**roi, **mask_config, 'wavelength_nm': wavelength, 'radius_um': radius_um,
+                       'max_angle': max_angle, 'catalogue': count, 'background': background,
+                       'fit_mode': method, 'fit_terms': data.get('fit_terms', []) if method == 'selected' else [],
+                       'require_center': bool(data.get('require_center', False))},
+            'image_meta': _image_meta, 'size': samples, 'observed': display.ravel(),
             'predicted': prediction.ravel(), 'difference': np.where(visible, sampled-prediction, np.nan).ravel(),
             'radial': {'rho': rho, 'observed': observed_radial/max(float(np.nanmax(observed_radial)), 1e-300),
                        'best_single': predicted_radial/max(float(np.max(predicted_radial)), 1e-300)},
             'fit': fit_meta, 'seconds': time.perf_counter()-started}
+
 
 
 def mode_lab(data, progress=lambda *_: None):

@@ -28,6 +28,8 @@ jobs:
           node --check modes.js
           node --check beam.js
           node --check theory.js
+          node --check slit.js
+          node --check fit-basis.js
           node --test tests/*.test.mjs
       - name: Check scientific calculations and input boundaries
         run: python -m unittest discover -s tests -p 'test_*.py' -v

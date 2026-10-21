@@ -10,10 +10,11 @@ Python, NumPy and SciPy run locally through Pyodide in a Web Worker. No calculat
 
 - Gaussian input with adjustable waist, angle, offset and polarization. Drag the beam centre in the live preview, or use the arrow keys (Shift for larger steps).
 - Complex propagation constants for HE, EH, TE and TM modes; joint vector least-squares projection.
+- Automatic basis selection from the launch parameters, expanding until the input projection residual reaches 0.1% or a reported resource limit. A manual mode limit is available in Advanced settings.
 - Intensity, phase and input maps, longitudinal sections and coherent power. The default power axis is 0–100%; Detail resolves small losses. Genuine computed values above 100% remain visible and trigger a model warning.
 - Click a mode in the simulation or experiment table to inspect it. Mode lab also accepts arbitrary family / n / m / orientation and constructs coherent sums of up to 12 profiles with independent amplitudes and phases.
-- PNG, TIFF, JPEG, BMP and SPE 2.x image analysis, preserving scientific 16-bit intensities. Interactive circular ROI and optional wall-edge refinement.
-- Modal intensity similarity and optional coherent fitting from three initial guesses.
+- PNG, TIFF, JPEG, BMP and SPE 2.x image analysis, preserving scientific 16-bit intensities. Interactive circular ROI, optional wall-edge refinement, and a movable slit aperture at any angle. Only the interior of the slit is measured.
+- Individual-mode search, automatic small-mixture fitting, or a coherent fit restricted to 1–6 explicitly selected physical modes. Fits use three initial guesses.
 - PNG / CSV / JSON exports, calculation-file import and local history of the last 12 simulations.
 - Stop cancels the current worker without discarding results already shown.
 - Full theory reader: 28 chapters in English, complete derivations and formulas, table of contents, print support and a Markdown download. Seven linked research papers explain the model's provenance.
@@ -24,6 +25,10 @@ Python, NumPy and SciPy run locally through Pyodide in a Web Worker. No calculat
 2. Configure the waveguide and input beam; select **Run simulation**. The first launch downloads Python and scientific packages from jsDelivr and may take about a minute.
 3. Move the section slider, inspect modes, or open **Mode lab** to construct a field independently.
 4. In **Experiment**, load an image or the synthetic HE₁,₃ example. Click to set the ROI centre; Shift + click sets its radius. Enter the physical radius before comparing profiles.
+5. Enable **Use only the area inside the slit** to discard the surroundings. Use Horizontal / Vertical, enter an angle, or choose **Draw slit** and drag along its axis. In **Edit slit**, drag the centre to move, the two edge handles to change width, and the white handle to rotate. **Edit ROI** switches back to the circular boundary.
+6. Start with **Single-mode search**, then use **Add to fit** next to candidate modes. **Fit selected modes** also accepts family / n / m / orientation directly and fits exactly the listed basis. **Automatic mixture** chooses up to four candidates itself.
+
+For a manually bounded simulation, open **Advanced settings → Mode selection → Manual** and enter **Maximum modes**. This caps the number of physical modes selected from the excited candidates; HE and EH can each contribute two orientation profiles. The result reports the actual number used.
 
 **Save calculation** downloads a JSON file containing the settings, modal coefficients, power curve, input field and current section. **Load calculation** restores such a file. A new simulation is required to generate additional sections after loading a file or history entry, or after stopping the worker. Mode lab JSON is a separate export of its mixture and result.
 
@@ -35,9 +40,11 @@ Projection uses joint least squares with SVD (`rcond=1e-9`). Normalized `|c|²` 
 
 If a complex root fails to converge, propagation uses the source project's Marcatili approximation, explicitly marked in the table. Check convergence by increasing resolution and basis size. Small projection residuals do not establish physical accuracy. HE/EH naming follows the source code's Bessel-root convention and can differ from the papers.
 
-The web simulation uses CPU, up to **128 physical modes** and a **256 × 256 grid**, with a conservative 650 MiB working-memory estimate. High angles, narrow waists or high modal orders may require the desktop version. Underresolved calculations are rejected. Mode lab supports at most 12 profiles and checks their spatial sampling independently.
+The web simulation uses CPU and a grid up to **256 × 256**. There is no fixed 128-mode ceiling: the usable basis depends on grid size, modal orders and a conservative **650 MiB working-memory budget**, including both vector components and solver workspace. The candidate catalogue and manual upper bound are limited to 6000 physical modes; this is not a promise that a 6000-mode solve will fit in browser memory. Automatic selection reports whether it reached its 0.1% input-projection target or stopped at a grid, memory or candidate limit. The target does not bound propagation error. Manual requests that exceed the resource budget or sampling limit are rejected. High angles, narrow waists or high modal orders may require the desktop version. Mode lab supports at most 12 profiles and checks their spatial sampling independently.
 
 One intensity image cannot identify unique modal phases. Similarity scores are diagnostics. The image catalogue supports up to 1500 modes; working images are reduced to at most 1024 pixels on the longer side. File limits: 32 MiB and 16 million pixels. Export SPE 3.x as TIFF. Use original monochrome intensity data for scientific pseudocolour images.
+
+Slit angles are clockwise in camera coordinates; widths and centres refer to the working image in pixels. Background subtraction, radial profiles, ranking and coherent fitting exclude pixels outside the slit. Missing data are masked, not treated as measured zero intensity. Selected fits bypass the search catalogue and use only the requested modes (up to 12 orientation profiles). Fitted profiles are normalized to unit RMS field over the measured region; exported coefficients include the corresponding `profile_rms` factors. Relative amplitudes are not modal power fractions. A narrow slit provides less information and can make different mixtures harder to distinguish.
 
 ## Local development
 

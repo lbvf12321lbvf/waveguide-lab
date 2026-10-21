@@ -7,6 +7,14 @@ test('exported project round trips without losing numerical values',()=>{
   const restored=validateProject(JSON.parse(JSON.stringify(project(result))));
   assert.deepEqual(restored,result);
 });
+test('old calculation files retain their manually chosen mode limit',()=>{
+  const p=structuredClone(project(result));delete p.result.config.mode_selection;
+  p.result.config.max_modes=129;
+  const restored=validateProject(p);
+  assert.equal(restored.config.mode_selection,'manual');
+  assert.equal(restored.config.max_modes,129);
+  assert.equal(p.result.config.mode_selection,undefined);
+});
 test('malformed projects cannot supply HTML or unbounded arrays',()=>{
   for(const change of [p=>p.result.rows[0].name='<img onerror=alert(1)>',
     p=>p.result.field.size=100000, p=>p.result.config.length_cm=NaN,

@@ -42,7 +42,7 @@ class SimulationTests(unittest.TestCase):
         np.testing.assert_allclose(x['field']['intensity'], y['field']['intensity'], atol=1e-7, equal_nan=True)
 
     def test_inadequate_sampling_is_rejected(self):
-        for config in ({'theta_deg': 15}, {'waist_um': 1}, {'samples': 256, 'max_modes': 128}):
+        for config in ({'theta_deg': 15}, {'waist_um': 1}):
             with self.subTest(config=config), self.assertRaises(ValueError):
                 engine.validate(config)
 

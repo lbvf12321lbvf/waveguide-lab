@@ -22,19 +22,23 @@ def preprocess_experimental_image(
     blur_sigma: float = 0.0,
     gamma: float = 1.0,
     invert: bool = False,
+    valid_mask: np.ndarray | None = None,
 ) -> np.ndarray:
     values = np.asarray(image, dtype=np.float64).copy()
     finite = np.isfinite(values)
+    if valid_mask is not None:
+        finite &= np.asarray(valid_mask, dtype=bool)
     if not np.any(finite):
         raise ValueError("The source contains no finite pixels")
-    values[~finite] = float(np.nanmedian(values[finite]))
+    values[~finite] = 0.0 if valid_mask is not None else float(np.nanmedian(values[finite]))
     if invert:
-        values = float(np.max(values)) - values
-    background = float(np.percentile(values, np.clip(background_percentile, 0.0, 95.0)))
+        values = float(np.max(values[finite])) - values
+    background = float(np.percentile(values[finite], np.clip(background_percentile, 0.0, 95.0)))
     values = np.maximum(values - background, 0.0)
+    values[~finite] = 0.0
     if blur_sigma > 0.0:
         values = gaussian_filter(values, sigma=float(blur_sigma), mode="nearest")
-    positive = values[values > 0.0]
+    positive = values[(values > 0.0) & finite]
     if positive.size:
         ceiling = float(np.percentile(positive, np.clip(clip_percentile, 50.0, 100.0)))
         if ceiling > 0.0:
@@ -44,6 +48,7 @@ def preprocess_experimental_image(
         raise ValueError("The image is empty after background subtraction")
     values /= maximum
     exponent = max(0.05, float(gamma))
+    values[~finite] = 0.0
     return np.power(values, exponent)
 
 
@@ -194,6 +199,7 @@ def _sample_camera_on_grid(
     crop_right_x: float | None = None,
     crop_top_y: float | None = None,
     crop_bottom_y: float | None = None,
+    valid_mask: np.ndarray | None = None,
 ):
     grid = make_grid(1.0, samples=int(samples))
     pixel_x = float(center_x) + grid.X * float(radius_px)
@@ -214,6 +220,10 @@ def _sample_camera_on_grid(
         visible &= pixel_y >= float(crop_top_y)
     if crop_bottom_y is not None:
         visible &= pixel_y <= float(crop_bottom_y)
+    if valid_mask is not None:
+        # Use only samples whose entire bilinear interpolation footprint is valid.
+        visible &= map_coordinates(np.asarray(valid_mask, dtype=float), [pixel_y, pixel_x],
+                                   order=1, mode="constant", cval=0.0) >= 1.0 - 1e-9
     sampled[~visible] = np.nan
     return grid, sampled, visible
 
@@ -230,6 +240,7 @@ def polar_diagnostics(
     crop_bottom_y: float | None = None,
     radial_samples: int = 180,
     angular_samples: int = 360,
+    valid_mask: np.ndarray | None = None,
 ) -> tuple[list[dict], list[dict]]:
     rho = np.linspace(0.0, 1.0, max(32, int(radial_samples)))
     phi = np.linspace(-np.pi, np.pi, max(64, int(angular_samples)), endpoint=False)
@@ -251,6 +262,9 @@ def polar_diagnostics(
         visible &= yy >= float(crop_top_y)
     if crop_bottom_y is not None:
         visible &= yy <= float(crop_bottom_y)
+    if valid_mask is not None:
+        visible &= map_coordinates(np.asarray(valid_mask, dtype=float), [yy, xx],
+                                   order=1, mode="constant", cval=0.0) >= 1.0 - 1e-9
     polar[~visible] = np.nan
     radial_count = np.sum(visible, axis=1)
     radial = np.divide(

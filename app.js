@@ -3,6 +3,8 @@ import {heatmap,imagePreview,lineChart} from './charts.js';
 import {saveRun,runs} from './storage.js';
 import {setupBeamPreview} from './beam.js';
 import {setupModeLab} from './modes.js';
+import {setupSlitEditor} from './slit.js';
+import {setupFitBasis} from './fit-basis.js';
 
 const $=id=>document.getElementById(id);
 const form=$('simulation-form'), expForm=$('experiment-form');
@@ -55,6 +57,8 @@ function setBusy(value){
   for(const id of ['image-file','demo-image','example-button','reset-button','import-button','history-button','material'])$(id).disabled=value;
   $('analyse-button').disabled=value||!currentImage;$('refine-button').disabled=value||!currentImage;
   $('z-range').disabled=value||!simulatedInWorker||!result||fieldView==='input';
+  updateModeControls();
+  slitEditor.update();fitBasis.update();
 }
 async function withTask(message,job){
   if(busy)return;
@@ -82,7 +86,16 @@ function setForm(values){
     el.value=String(v);
   }
   updateMaterialLabel();
+  updateModeControls();
   drawBeam();
+}
+function updateModeControls(){
+  const automatic=form.elements.namedItem('mode_selection').value==='auto';
+  $('manual-mode-limit').hidden=automatic;
+  form.elements.namedItem('max_modes').disabled=busy||automatic;
+  $('mode-selection-help').textContent=automatic?
+    'Adapts to the input beam; targets ≤ 0.1% projection residual. Grid and memory limits are reported.':
+    'Upper limit, not a required count. Only excited modes are used; grid and memory checks still apply.';
 }
 function readForm(){
   const data={};for(const [key,value] of Object.entries(DEFAULTS)){
@@ -91,7 +104,8 @@ function readForm(){
   }return data;
 }
 function readExp(){
-  const data={};for(const el of expForm.elements){if(!el.name)continue;data[el.name]=el.type==='checkbox'?el.checked:Number(el.value);}return data;
+  const data={};for(const el of expForm.elements){if(!el.name)continue;data[el.name]=el.type==='checkbox'?el.checked:el.name==='fit_mode'?el.value:Number(el.value);}
+  data.fit_terms=fitBasis.terms();return data;
 }
 function updateMaterialLabel(){
   const v=readForm();let key='custom';
@@ -115,7 +129,7 @@ function markDirty(){
     `Calculation complete · ${format(result.metrics.seconds,2)} s · ${result.config.samples} × ${result.config.samples}`;
 }
 form.addEventListener('input',()=>{updateMaterialLabel();markDirty();});
-form.addEventListener('change',markDirty);
+form.addEventListener('change',()=>{updateModeControls();markDirty();});
 $('reset-button').onclick=()=>{setForm(DEFAULTS);markDirty();};
 form.addEventListener('submit',e=>{e.preventDefault();if(!form.reportValidity())return;
   const config=readForm();
@@ -136,6 +150,11 @@ function renderResult(){
   $('metric-residual').textContent=result.metrics.residual<.0001?'< 0.01%':format(result.metrics.residual*100,2)+'%';
   $('metric-modes').textContent=result.metrics.physical_modes;
   $('metric-profiles').textContent=`${result.metrics.profiles} profiles · rank ${result.metrics.rank}`;
+  const selection=result.selection;
+  const reasons={grid_limit:'grid limit reached',memory_limit:'memory limit reached',candidate_limit:'all eligible modes used'};
+  $('mode-selection-status').textContent=selection?.method==='auto'?
+    `Automatic · ${result.metrics.physical_modes} of ${selection.eligible_modes} eligible modes · ${selection.target_met?'projection target ≤ 0.1% reached':reasons[selection.stop_reason]||'target not reached'}`:
+    `Manual · ${result.metrics.physical_modes} modes used · limit ${result.config.max_modes}`;
   $('z-range').max=result.config.length_cm;$('z-range').value=result.field.z_cm??result.config.length_cm;
   $('z-value').textContent=format(Number($('z-range').value),1)+' cm';$('z-max').textContent=format(result.config.length_cm,1)+' cm';
   $('z-range').disabled=busy||!simulatedInWorker||fieldView==='input';
@@ -240,6 +259,7 @@ $('history-dialog').addEventListener('click',e=>{if(e.target===$('history-dialog
 function applyImage(data){
   currentImage=data;imageInWorker=true;experiment=null;$('experiment-results').hidden=true;
   for(const [key,value] of Object.entries(data.roi))expForm.elements.namedItem(key).value=value.toFixed(2);
+  slitEditor.reset(data);
   $('image-name').textContent=data.meta.name+(data.meta.color_note?' · '+data.meta.color_note:'');
   $('image-dimensions').textContent=`${data.meta.width} × ${data.meta.height}`+(data.meta.scale<1?' · resized':'');
   $('image-empty').hidden=true;renderImage();updateScale();
@@ -268,7 +288,7 @@ async function ensureImage(){
   imageInWorker=true;
 }
 $('image-canvas').onclick=e=>{
-  if(!currentImage||busy)return;const m=$('image-canvas')._map;if(!m)return;const r=e.currentTarget.getBoundingClientRect();
+  if(!currentImage||busy||slitEditor.isActive())return;const m=$('image-canvas')._map;if(!m)return;const r=e.currentTarget.getBoundingClientRect();
   const x=(e.clientX-r.left-m.x)/m.scale,y=(e.clientY-r.top-m.y)/m.scale;
   if(x<0||y<0||x>=m.sourceW||y>=m.sourceH)return;
   if(e.shiftKey){const data=readExp();expForm.elements.namedItem('radius_px').value=Math.max(5,Math.hypot(x-data.center_x,y-data.center_y)).toFixed(2);}
@@ -276,7 +296,7 @@ $('image-canvas').onclick=e=>{
   updateScale();renderImage();
 };
 $('image-canvas').onkeydown=e=>{
-  if(!currentImage||busy||!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key))return;e.preventDefault();
+  if(!currentImage||busy||slitEditor.isActive()||!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key))return;e.preventDefault();
   const key=['ArrowLeft','ArrowRight'].includes(e.key)?'center_x':'center_y';const sign=['ArrowLeft','ArrowUp'].includes(e.key)?-1:1;
   const el=expForm.elements.namedItem(key);el.value=Math.max(0,Math.min((key==='center_x'?currentImage.meta.width:currentImage.meta.height)-1,Number(el.value)+sign*(e.shiftKey?10:1))).toFixed(2);
   updateScale();renderImage();
@@ -293,19 +313,30 @@ expForm.onsubmit=e=>{e.preventDefault();if(!expForm.reportValidity()||!currentIm
 };
 function renderExperiment(){
   if(!experiment||currentTab!=='experiment')return;const ex=experiment;$('experiment-results').hidden=false;
-  $('experiment-summary').textContent=`Visible: ${format(ex.coverage*100,1)}% ROI · ${ex.diagnostics.catalogue_modes} modes · ${format(ex.seconds,1)} s`;
+  $('experiment-summary').textContent=`Used: ${format(ex.coverage*100,1)}% of ROI${ex.config.slit_enabled?' · slit applied':''} · ${ex.diagnostics.catalogue_modes} modes · ${format(ex.seconds,1)} s`;
   $('experiment-rows').replaceChildren();for(const row of ex.rows){const tr=document.createElement('tr');
-    for(const v of [row.name,format(row.similarity_score,3),format(row.correlation_2d,3),format(row.modal_angle_deg,4),format(row.relative_l2_2d,3)]){const td=document.createElement('td');if(!tr.children.length){const button=document.createElement('button');button.className='mode-link';button.textContent=v;button.onclick=()=>inspectMode(row.name,{...readForm(),diameter_um:ex.config.radius_um*2,wavelength_nm:ex.config.wavelength_nm});td.append(button);}else td.textContent=v;tr.append(td);}$('experiment-rows').append(tr);}
+    for(const v of [row.name,format(row.similarity_score,3),format(row.correlation_2d,3),format(row.modal_angle_deg,4),format(row.relative_l2_2d,3)]){const td=document.createElement('td');if(!tr.children.length){const button=document.createElement('button');button.className='mode-link';button.textContent=v;button.onclick=()=>inspectMode(row.name,{...readForm(),diameter_um:ex.config.radius_um*2,wavelength_nm:ex.config.wavelength_nm});td.append(button);}else td.textContent=v;tr.append(td);}
+    const td=document.createElement('td'),add=document.createElement('button');add.className='text-button';add.textContent='Add to fit';add.onclick=()=>{if(!busy)fitBasis.addName(row.name);};td.append(add);tr.append(td);$('experiment-rows').append(tr);}
   lineChart($('radial-canvas'),[{x:ex.radial.rho,y:ex.radial.observed},{x:ex.radial.rho,y:ex.radial.best_single,color:'#b66535',dash:true}],{xmax:1,height:240});
   const max=Math.max(1e-12,...ex.predicted.filter(Number.isFinite));
   heatmap($('fit-canvas'),ex.predicted.map(v=>v===null?null:v/max),ex.size,{radius:ex.config.radius_um});
-  $('fit-note').textContent=ex.fit?`Coherent fit: relative error ${format(ex.fit.residual,4)}, correlation ${format(ex.fit.correlation,4)}. Residuals from three starts: ${ex.fit.restart_residuals.map(v=>format(v,4)).join(' / ')}. Phases are not uniquely determined.`:
+  $('fit-note').textContent=ex.fit?`${ex.fit.method==='selected'?'Selected-mode':'Automatic'} fit · ${ex.fit.modes.join(' + ')}. Relative error ${format(ex.fit.residual,4)}, correlation ${format(ex.fit.correlation,4)}. Only the measured region is fitted; phases are not uniquely determined.`:
     `Best single mode: ${ex.rows[0].name}. The map shows its intensity; radial profiles are normalized independently.`;
+  const container=$('fit-coefficients');container.replaceChildren();container.hidden=!ex.fit;
+  if(ex.fit){
+    const table=document.createElement('table'),head=document.createElement('thead'),tr=document.createElement('tr');
+    for(const label of ['Profile','Relative amplitude','Phase, °']){const th=document.createElement('th');th.textContent=label;tr.append(th);}head.append(tr);table.append(head);
+    const body=document.createElement('tbody'),maximum=Math.max(...ex.fit.coefficients.map(c=>c.amplitude),1e-300);
+    for(const c of ex.fit.coefficients){const row=document.createElement('tr');for(const v of [c.name,format(c.amplitude/maximum,4),format(c.phase_deg,2)]){const td=document.createElement('td');td.textContent=v;row.append(td);}body.append(row);}
+    table.append(body);const note=document.createElement('p');note.className='help';note.textContent='Amplitudes use profiles normalized over the measured region; they are not modal power fractions. The largest coefficient sets the phase reference.';container.append(table,note);
+  }
 }
 $('experiment-export').onclick=()=>experiment&&download('waveguide-experiment.json',JSON.stringify({schema:'waveguide-experiment/1',created_at:new Date().toISOString(),result:experiment}));
 
 let resizeTimer;window.addEventListener('resize',()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>{renderField();renderPower();renderImage();renderExperiment();},120);});
 window.addEventListener('error',e=>{if(!previewError){previewError=true;toast('Interface error: '+e.message+'. Reload the page; saved calculations remain in history.');}});
+const slitEditor=setupSlitEditor({canvas:$('image-canvas'),form:expForm,getImage:()=>currentImage,isBusy:()=>busy,onChange:()=>{updateScale();renderImage();}});
+const fitBasis=setupFitBasis({form:expForm,isBusy:()=>busy,onChange:()=>{updateScale();renderImage();},onError:toast});
 drawBeam=setupBeamPreview(form,readForm,markDirty);
 setForm(DEFAULTS);setBusy(false);example();
 fetch('./assets/references.json').then(r=>{if(!r.ok)throw new Error();return r.json();}).then(refs=>{
