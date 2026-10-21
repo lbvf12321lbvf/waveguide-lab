@@ -1,70 +1,69 @@
-<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Waveguide Lab — Full theory</title><link rel="icon" href="./assets/icon.svg"><link rel="stylesheet" href="./theory.css"><script defer src="./theory.js"></script></head><body>
-<header><a href="./" target="_top">Waveguide Lab</a><span>Теория расчёта полого цилиндрического волновода</span><a href="./assets/theory-original.md" download>Скачать исходник</a></header>
-<div class="reader"><aside><h2>Оглавление</h2><input id="chapter-search" type="search" placeholder="Найти раздел…" aria-label="Найти раздел"><nav><a href="#section-0">0. Источники из папки и как они используются</a><a href="#section-1">1. Область применимости расчета</a><a href="#section-2">2. Уравнения Максвелла и волновое уравнение</a><a href="#section-3">3. Разделение переменных в цилиндрическом волноводе</a><a href="#section-4">4. Связь продольных и поперечных компонент</a><a href="#section-5">5. Типы мод: TE, TM, HE, EH</a><a href="#section-6">6. Геометрический смысл параметра u</a><a href="#section-7">7. Характеристические уравнения для комплексной γ</a><a href="#section-8">8. Потери: связь комплексной γ, Маркатили и лучевой модели</a><a href="#section-9">9. Входной гауссов пучок</a><a href="#section-10">10. Почему наклонный пучок возбуждает высокие моды</a><a href="#section-11">11. Вывод ширины окна по u</a><a href="#section-12">12. Угловые гармоники и формула Якоби-Ангера</a><a href="#section-13">13. Отбор кандидатных мод</a><a href="#section-14">14. Поперечные профили, используемые в проекции</a><a href="#section-15">15. Нормировка мод и скалярное произведение</a><a href="#section-16">16. Модальное разложение как задача наименьших квадратов</a><a href="#section-17">17. Быстрая оценка возбуждения в полярных координатах</a><a href="#section-18">18. Распространение модального поля</a><a href="#section-19">19. Модальная корреляция и длина расфазировки</a><a href="#section-20">20. Почему период уменьшается с углом</a><a href="#section-21">21. Времена пролета и импульсная модель</a><a href="#section-22">22. Полная цепочка расчета</a><a href="#section-23">23. Основные физические выводы</a><a href="#section-24">24. Соответствие формулам в файлах проекта</a><a href="#section-25">25. Краткая таблица формул</a><a href="#section-26">26. Что еще можно добавить в следующей версии</a><a href="#section-27">27. Литература</a></nav></aside><main>
-<div class="reader-tools"><button id="expand-all">Раскрыть все</button><button id="collapse-all">Свернуть все</button><button id="print-theory">Печать / PDF</button><span id="math-status" role="status">Подготовка формул…</span></div>
-<div class="reader-note">Полный текст исходной методики, без сокращения выводов. Разделы о лучевой модели, шероховатости, импульсах и корреляции описывают настольный проект; соответствующих расчётных инструментов в веб-версии нет. Обозначения HE/EH следуют соглашению исходного кода и могут отличаться от обозначений в статьях. Ссылки на локальные PDF заменены ссылками на публикации.</div>
-<h1>Теория расчета полого цилиндрического волновода</h1>
-<p>Образовательный материал к расчетам в пакете <code>waveguide_practice</code>.</p>
-<p>Файл написан как связный путь от базовой электродинамики до формул, которые используются в текущем коде: собственные моды полого металлического капилляра, комплексные постоянные распространения, потери, угловой отбор мод, разложение наклонного гауссова пучка, продольная интерференция и межмодовые задержки импульса.</p>
-<details class="chapter" id="section-0" open><summary>0. Источники из папки и как они используются</summary><div class="chapter-body"><p>В материале ниже формулы из кода привязаны к локальным статьям из рабочей папки. Ссылки относительные, поэтому будут открываться при переносе Markdown вместе с PDF.</p>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Waveguide Lab — Full theory</title><link rel="icon" href="./assets/icon.svg"><link rel="stylesheet" href="./theory.css"><script defer src="./theory.js"></script></head><body>
+<header><a href="./" target="_top">Waveguide Lab</a><span>Theory of a hollow cylindrical waveguide</span><a href="./assets/theory.md" download>Download Markdown</a></header>
+<div class="reader"><aside><h2>Contents</h2><input id="chapter-search" type="search" placeholder="Find a chapter…" aria-label="Find a chapter"><nav><a href="#section-0">0. Sources and their role</a><a href="#section-1">1. Scope of the calculation</a><a href="#section-2">2. Maxwell&#x27;s equations and the wave equation</a><a href="#section-3">3. Separation of variables in a cylindrical waveguide</a><a href="#section-4">4. Longitudinal and transverse field components</a><a href="#section-5">5. Mode families: TE, TM, HE, EH</a><a href="#section-6">6. Geometrical meaning of u</a><a href="#section-7">7. Characteristic equations for complex γ</a><a href="#section-8">8. Attenuation: complex γ, Marcatili, and ray optics</a><a href="#section-9">9. Input Gaussian beam</a><a href="#section-10">10. Why a tilted beam excites high-order modes</a><a href="#section-11">11. Derivation of the selection width in u</a><a href="#section-12">12. Angular harmonics and the Jacobi–Anger expansion</a><a href="#section-13">13. Candidate-mode selection</a><a href="#section-14">14. Transverse profiles used in the projection</a><a href="#section-15">15. Mode normalization and inner product</a><a href="#section-16">16. Modal decomposition as a least-squares problem</a><a href="#section-17">17. Fast excitation estimate in polar coordinates</a><a href="#section-18">18. Propagation of the modal field</a><a href="#section-19">19. Modal correlation and dephasing length</a><a href="#section-20">20. Why the period decreases with launch angle</a><a href="#section-21">21. Transit times and the pulse model</a><a href="#section-22">22. Complete calculation pipeline</a><a href="#section-23">23. Main physical conclusions</a><a href="#section-24">24. Mapping the equations to project files</a><a href="#section-25">25. Formula reference</a><a href="#section-26">26. Possible extensions</a><a href="#section-27">27. References</a></nav></aside><main>
+<div class="reader-tools"><button id="expand-all">Expand all</button><button id="collapse-all">Collapse all</button><button id="print-theory">Print / PDF</button><span id="math-status" role="status">Loading equations…</span></div>
+<h1>Theory of a hollow cylindrical waveguide</h1>
+<p>Theoretical background for the calculations in the <code>waveguide_practice</code> package.</p>
+<p>These notes follow a continuous path from basic electrodynamics to the equations used in the code: eigenmodes of a hollow metallic capillary, complex propagation constants, attenuation, angular mode selection, decomposition of a tilted Gaussian beam, longitudinal interference, and intermodal pulse delays.</p>
+<details class="chapter" id="section-0" open><summary>0. Sources and their role</summary><div class="chapter-body"><p>The equations below are linked to the research papers on which the calculation is based. The reference links lead to the corresponding publications.</p>
 <ul>
-<li><a href="https://doi.org/10.1002/j.1538-7305.1964.tb04108.x">Marcatili, Schmeltzer, 1964</a> - базовая работа по полым металлическим и диэлектрическим круговым волноводам: нормальные моды, постоянные распространения, семейства HE/EH и масштаб потерь $\alpha\propto\lambda^2/a^3$.</li>
-<li><a href="https://doi.org/10.1109/JLT.1985.1074177">Miyagi, 1985</a> - связь волнового расчета потерь в круглом полом волноводе с лучевой оптикой, в том числе трактовка гибридных мод через соответствующие лучи.</li>
-<li><a href="https://doi.org/10.1364/JOSAA.6.000423">Matsuura, Saito, Miyagi, Hongo, 1989</a> - удобная лучевая формула для потерь при мультимодовом распространении, усреднение по поляризациям через коэффициенты отражения и учет распределения углов ввода.</li>
-<li><a href="https://doi.org/10.1364/JOSAA.10.000277">Saito, Sato, Miyagi, 1993</a> - мультимодовые потери в ИК-полых волноводах: экспоненциальное затухание при малых потерях, зависимость от радиуса канала и угла ввода, сравнение волнового и геометрического подходов.</li>
-<li><a href="https://doi.org/10.1109/JQE.1972.1076875">Abrams, 1972</a> - потери связи в резонаторах на полых волноводах, роль низшей моды EH11 и согласования внешнего поля с модой.</li>
-<li><a href="https://doi.org/10.1364/AO.31.005086">Jenkins, Devereux, 1992</a> - регенерация TEM00-поля в круглом полом волноводе из-за относительной фазы мод EH11/EH12; это физическая опора для разделов о продольной модальной корреляции.</li>
-<li><a href="https://doi.org/10.1109/JSEN.2021.3113373">Khannanov, Vankov, Kulik et al., 2021</a> - прикладная мотивация: серебряный SERS-волноводный резонатор и Raman-измерения в газах; используется как контекст для серебряного покрытия и экспериментальной задачи.</li>
+<li><a href="https://doi.org/10.1002/j.1538-7305.1964.tb04108.x">Marcatili, Schmeltzer, 1964</a> — the foundational treatment of hollow metallic and dielectric circular waveguides: normal modes, propagation constants, HE/EH families, and the loss scaling $\alpha\propto\lambda^2/a^3$.</li>
+<li><a href="https://doi.org/10.1109/JLT.1985.1074177">Miyagi, 1985</a> — the connection between wave-based attenuation calculations in a circular hollow waveguide and ray optics, including the interpretation of hybrid modes in terms of their corresponding rays.</li>
+<li><a href="https://doi.org/10.1364/JOSAA.6.000423">Matsuura, Saito, Miyagi, Hongo, 1989</a> — a convenient ray-optical expression for multimode attenuation, polarization averaging through reflection coefficients, and treatment of the launch-angle distribution.</li>
+<li><a href="https://doi.org/10.1364/JOSAA.10.000277">Saito, Sato, Miyagi, 1993</a> — multimode attenuation in infrared hollow waveguides: exponential decay in the low-loss limit, dependence on bore radius and launch angle, and comparison of wave and geometrical approaches.</li>
+<li><a href="https://doi.org/10.1109/JQE.1972.1076875">Abrams, 1972</a> — coupling losses in hollow-waveguide resonators, the role of the lowest-order EH11 mode, and matching an external field to a waveguide mode.</li>
+<li><a href="https://doi.org/10.1364/AO.31.005086">Jenkins, Devereux, 1992</a> — regeneration of a TEM00 field in a circular hollow waveguide through the relative phase of the EH11/EH12 modes; this provides the physical basis for the sections on longitudinal modal correlation.</li>
+<li><a href="https://doi.org/10.1109/JSEN.2021.3113373">Khannanov, Vankov, Kulik et al., 2021</a> — the experimental motivation: a silver SERS waveguide resonator and Raman measurements in gases, providing context for the silver coating and the experimental problem.</li>
 </ul>
-<p>PDF в подпапке <code>Plasmon</code> здесь не разобраны полностью: там есть дубликаты некоторых статей и отдельная плазмонная литература. Если расчет будет расширяться на поверхностные плазмон-поляритоны или SERS-усиление на стенке, этот блок нужно дополнить отдельной главой.</p></div></details>
-<details class="chapter" id="section-1"><summary>1. Область применимости расчета</summary><div class="chapter-body"><p>В расчете рассматривается полый круглый капилляр радиуса</p>
+<p>The plasmonics literature collected in the project's <code>Plasmon</code> folder is not reviewed in full here. It includes duplicates of some references and additional papers on plasmonics. Extending the calculation to surface plasmon polaritons or SERS enhancement at the wall would require a separate chapter.</p></div></details>
+<details class="chapter" id="section-1"><summary>1. Scope of the calculation</summary><div class="chapter-body"><p>The model considers a hollow circular capillary of radius</p>
 <div class="math-block">$$
 a=\frac{d}{2},
 $$</div>
-<p>заполненный воздухом и окруженный металлической стенкой. В коде по умолчанию:</p>
+<p>filled with air and surrounded by a metallic wall. The default parameters in the code are</p>
 <div class="math-block">$$
 \lambda=800\ \text{nm},\qquad d=300\ \mu\text{m},\qquad a=150\ \mu\text{m}.
 $$</div>
-<p>Волновое число в вакууме:</p>
+<p>The vacuum wavenumber is</p>
 <div class="math-block">$$
 k_0=\frac{2\pi}{\lambda}.
 $$</div>
-<p>Для металла используется комплексная диэлектрическая проницаемость серебра:</p>
+<p>The metal is described by the complex relative permittivity of silver,</p>
 <div class="math-block">$$
 \varepsilon_m=-31.021+0.40948i
 $$</div>
-<p>на длине волны 800 nm. Комплексный показатель преломления металла:</p>
+<p>at a wavelength of 800 nm. The complex refractive index of the metal is</p>
 <div class="math-block">$$
 v=n_m=\sqrt{\varepsilon_m}.
 $$</div>
-<p>Главное приближение расчета: поле внутри капилляра представляется как сумма собственных мод цилиндрического волновода. В коде это не полный векторный конечно-элементный расчет, а модальная модель с аналитическими цилиндрическими функциями и численным решением характеристических уравнений.</p>
-<p>Такая постановка следует классической модальной теории полых круглых волноводов, изложенной у <a href="https://doi.org/10.1002/j.1538-7305.1964.tb04108.x">Marcatili, Schmeltzer, 1964</a>. Для интерпретации потерь и мультимодового ввода дополнительно используются результаты <a href="https://doi.org/10.1109/JLT.1985.1074177">Miyagi, 1985</a>, <a href="https://doi.org/10.1364/JOSAA.6.000423">Matsuura et al., 1989</a> и <a href="https://doi.org/10.1364/JOSAA.10.000277">Saito et al., 1993</a>.</p>
-<p>Используемая зависимость от времени:</p>
+<p>The central approximation is to represent the field inside the capillary as a sum of cylindrical-waveguide eigenmodes. The implementation is a modal model using analytical cylindrical functions and numerical solutions of characteristic equations, rather than a full-vector finite-element calculation.</p>
+<p>This formulation follows the classical modal theory of hollow circular waveguides developed by <a href="https://doi.org/10.1002/j.1538-7305.1964.tb04108.x">Marcatili, Schmeltzer, 1964</a>. The interpretation of attenuation and multimode coupling also uses results from <a href="https://doi.org/10.1109/JLT.1985.1074177">Miyagi, 1985</a>, <a href="https://doi.org/10.1364/JOSAA.6.000423">Matsuura et al., 1989</a>, and <a href="https://doi.org/10.1364/JOSAA.10.000277">Saito et al., 1993</a>.</p>
+<p>The time dependence is chosen as</p>
 <div class="math-block">$$
 \exp(-i\omega t).
 $$</div>
-<p>Зависимость моды от продольной координаты:</p>
+<p>The longitudinal dependence of a mode is</p>
 <div class="math-block">$$
 \exp(i\gamma z).
 $$</div>
-<p>Если</p>
+<p>If</p>
 <div class="math-block">$$
 \gamma=\beta+i\alpha_{\rm amp},
 $$</div>
-<p>то</p>
+<p>then</p>
 <div class="math-block">$$
 \exp(i\gamma z)=\exp(i\beta z)\exp(-\alpha_{\rm amp}z).
 $$</div>
-<p>Значит, $\alpha_{\rm amp}$ есть коэффициент затухания амплитуды, а коэффициент затухания мощности равен</p>
+<p>Thus, $\alpha_{\rm amp}$ is the amplitude attenuation coefficient, while the power attenuation coefficient is</p>
 <div class="math-block">$$
 \alpha_{\rm pow}=2\alpha_{\rm amp}=2\,\mathrm{Im}\,\gamma.
 $$</div>
-<p>Именно это используется в коде:</p>
+<p>This is the convention used in the code:</p>
 <div class="math-block">$$
 \texttt{power\_attenuation}=2\,\mathrm{Im}\,\gamma,\qquad
 L_{\rm att}=\frac{1}{\alpha_{\rm pow}}.
 $$</div></div></details>
-<details class="chapter" id="section-2"><summary>2. Уравнения Максвелла и волновое уравнение</summary><div class="chapter-body"><p>В линейной однородной среде без свободных зарядов и токов уравнения Максвелла для гармонических полей имеют вид</p>
+<details class="chapter" id="section-2"><summary>2. Maxwell's equations and the wave equation</summary><div class="chapter-body"><p>In a linear, homogeneous medium without free charges or currents, Maxwell's equations for harmonic fields take the form</p>
 <div class="math-block">$$
 \nabla\times \mathbf E=i\omega\mu\,\mathbf H,
 $$</div>
@@ -75,138 +74,138 @@ $$</div>
 \nabla\cdot(\varepsilon\mathbf E)=0,\qquad
 \nabla\cdot(\mu\mathbf H)=0.
 $$</div>
-<p>Внутри капилляра среда считается воздухом, поэтому</p>
+<p>The medium inside the capillary is taken to be air, so</p>
 <div class="math-block">$$
 \varepsilon\simeq\varepsilon_0,\qquad \mu\simeq\mu_0.
 $$</div>
-<p>В металле:</p>
+<p>In the metal,</p>
 <div class="math-block">$$
 \varepsilon=\varepsilon_0\varepsilon_m,\qquad \mu\simeq\mu_0.
 $$</div>
-<p>Получим волновое уравнение для электрического поля. Берем ротор от первого уравнения Максвелла:</p>
+<p>To derive the wave equation for the electric field, take the curl of the first Maxwell equation:</p>
 <div class="math-block">$$
 \nabla\times(\nabla\times\mathbf E)
 =i\omega\mu\,\nabla\times\mathbf H.
 $$</div>
-<p>Подставляем второе уравнение:</p>
+<p>Substitute the second equation:</p>
 <div class="math-block">$$
 \nabla\times(\nabla\times\mathbf E)
 =i\omega\mu(-i\omega\varepsilon\mathbf E)
 =\omega^2\mu\varepsilon\,\mathbf E.
 $$</div>
-<p>Используем тождество</p>
+<p>Use the identity</p>
 <div class="math-block">$$
 \nabla\times(\nabla\times\mathbf E)
 =\nabla(\nabla\cdot\mathbf E)-\nabla^2\mathbf E.
 $$</div>
-<p>В однородной области $\nabla\cdot\mathbf E=0$, поэтому</p>
+<p>In a homogeneous region, $\nabla\cdot\mathbf E=0$, hence</p>
 <div class="math-block">$$
 -\nabla^2\mathbf E=\omega^2\mu\varepsilon\,\mathbf E.
 $$</div>
-<p>Отсюда:</p>
+<p>It follows that</p>
 <div class="math-block">$$
 \nabla^2\mathbf E+k^2\mathbf E=0,
 $$</div>
-<p>где</p>
+<p>where</p>
 <div class="math-block">$$
 k^2=\omega^2\mu\varepsilon.
 $$</div>
-<p>В воздухе:</p>
+<p>In air,</p>
 <div class="math-block">$$
 k=k_0=\frac{\omega}{c}.
 $$</div>
-<p>В металле:</p>
+<p>In the metal,</p>
 <div class="math-block">$$
 k=k_m=v k_0,\qquad v=\sqrt{\varepsilon_m}.
 $$</div>
-<p>Такое же волновое уравнение выполняется для $\mathbf H$.</p></div></details>
-<details class="chapter" id="section-3"><summary>3. Разделение переменных в цилиндрическом волноводе</summary><div class="chapter-body"><p>Капилляр имеет цилиндрическую симметрию, поэтому естественные координаты:</p>
+<p>The same wave equation holds for $\mathbf H$.</p></div></details>
+<details class="chapter" id="section-3"><summary>3. Separation of variables in a cylindrical waveguide</summary><div class="chapter-body"><p>The capillary has cylindrical symmetry, making the natural coordinates</p>
 <div class="math-block">$$
 (r,\varphi,z).
 $$</div>
-<p>Для моды с постоянной распространения $\gamma$ все компоненты поля имеют зависимость</p>
+<p>For a mode with propagation constant $\gamma$, every field component has the dependence</p>
 <div class="math-block">$$
 \mathbf E(r,\varphi,z)=\mathbf E(r,\varphi)\exp(i\gamma z),
 $$</div>
 <div class="math-block">$$
 \mathbf H(r,\varphi,z)=\mathbf H(r,\varphi)\exp(i\gamma z).
 $$</div>
-<p>Тогда продольная производная заменяется на</p>
+<p>The longitudinal derivative is therefore replaced by</p>
 <div class="math-block">$$
 \frac{\partial}{\partial z}\rightarrow i\gamma.
 $$</div>
-<p>Для продольной компоненты поля, например $E_z$, волновое уравнение принимает вид</p>
+<p>For a longitudinal field component such as $E_z$, the wave equation becomes</p>
 <div class="math-block">$$
 \left(\nabla_\perp^2+k^2-\gamma^2\right)E_z=0,
 $$</div>
-<p>где поперечный лапласиан в цилиндрических координатах равен</p>
+<p>where the transverse Laplacian in cylindrical coordinates is</p>
 <div class="math-block">$$
 \nabla_\perp^2=
 \frac{1}{r}\frac{\partial}{\partial r}
 \left(r\frac{\partial}{\partial r}\right)
 +\frac{1}{r^2}\frac{\partial^2}{\partial\varphi^2}.
 $$</div>
-<p>Вводим поперечное волновое число:</p>
+<p>Define the transverse wavenumber:</p>
 <div class="math-block">$$
 \kappa^2=k^2-\gamma^2.
 $$</div>
-<p>Тогда</p>
+<p>Then</p>
 <div class="math-block">$$
 \left(\nabla_\perp^2+\kappa^2\right)E_z=0.
 $$</div>
-<p>Ищем решение в виде</p>
+<p>Seek a solution of the form</p>
 <div class="math-block">$$
 E_z(r,\varphi)=R(r)\exp(in\varphi),
 $$</div>
-<p>где $n=0,1,2,\ldots$ - азимутальный индекс.</p>
-<p>Подстановка дает</p>
+<p>where $n=0,1,2,\ldots$ is the azimuthal index.</p>
+<p>Substitution gives</p>
 <div class="math-block">$$
 \frac{1}{r}\frac{d}{dr}\left(r\frac{dR}{dr}\right)
 +\left(\kappa^2-\frac{n^2}{r^2}\right)R=0.
 $$</div>
-<p>Умножим на $r^2$:</p>
+<p>Multiplying by $r^2$ yields</p>
 <div class="math-block">$$
 r^2 R&#x27;&#x27;+rR&#x27;+(\kappa^2 r^2-n^2)R=0.
 $$</div>
-<p>Это уравнение Бесселя. Его регулярное в нуле решение:</p>
+<p>This is Bessel's equation. Its solution that is regular at the origin is</p>
 <div class="math-block">$$
 R(r)=J_n(\kappa r),
 $$</div>
-<p>где $J_n$ - функция Бесселя первого рода.</p>
-<p>Внутри капилляра:</p>
+<p>where $J_n$ is the Bessel function of the first kind.</p>
+<p>Inside the capillary,</p>
 <div class="math-block">$$
 \kappa_i=k_i=\sqrt{k_0^2-\gamma^2}.
 $$</div>
-<p>В металле:</p>
+<p>In the metal,</p>
 <div class="math-block">$$
 \kappa_e=k_e=\sqrt{v^2k_0^2-\gamma^2}.
 $$</div>
-<p>В коде это записано как</p>
+<p>In the code, these quantities are written as</p>
 <div class="math-block">$$
 k_i=\sqrt{k_0^2-\gamma^2},\qquad
 k_e=\sqrt{v^2k_0^2-\gamma^2}.
 $$</div>
-<p>Для внешней области используется функция Ханкеля $H_n^{(1)}(k_e r)$. В численном коде применена масштабированная функция <code>hankel1e</code>, чтобы избежать переполнения на комплексных аргументах. Отношения функций Ханкеля при этом сохраняют тот же физический смысл.</p></div></details>
-<details class="chapter" id="section-4"><summary>4. Связь продольных и поперечных компонент</summary><div class="chapter-body"><p>Моды волновода удобно строить через продольные компоненты $E_z$ и $H_z$. Поперечные компоненты выражаются через них.</p>
-<p>Пусть</p>
+<p>The exterior region is described by the Hankel function $H_n^{(1)}(k_e r)$. The numerical implementation uses the exponentially scaled function <code>hankel1e</code> to avoid overflow for complex arguments. Ratios of Hankel functions retain the same physical meaning.</p></div></details>
+<details class="chapter" id="section-4"><summary>4. Longitudinal and transverse field components</summary><div class="chapter-body"><p>Waveguide modes can be constructed from the longitudinal components $E_z$ and $H_z$. The transverse components are then expressed in terms of them.</p>
+<p>Let</p>
 <div class="math-block">$$
 \mathbf E=\mathbf E_\perp+\hat{\mathbf z}E_z,\qquad
 \mathbf H=\mathbf H_\perp+\hat{\mathbf z}H_z.
 $$</div>
-<p>Оператор градиента:</p>
+<p>The gradient operator is</p>
 <div class="math-block">$$
 \nabla=\nabla_\perp+\hat{\mathbf z}\frac{\partial}{\partial z}
 =\nabla_\perp+i\gamma\hat{\mathbf z}.
 $$</div>
-<p>Теперь не будем пропускать алгебру. Запишем роторы в цилиндрических координатах. Для гармонической зависимости $\exp(i\gamma z)$ имеем</p>
+<p>We now work through the algebra explicitly, writing the curls in cylindrical coordinates. For the harmonic dependence $\exp(i\gamma z)$,</p>
 <div class="math-block">$$
 \frac{\partial}{\partial z}=i\gamma.
 $$</div>
-<p>Компоненты уравнения</p>
+<p>The components of the equation</p>
 <div class="math-block">$$
 \nabla\times\mathbf E=i\omega\mu\mathbf H
 $$</div>
-<p>равны</p>
+<p>are</p>
 <div class="math-block">$$
 \frac{1}{r}\frac{\partial E_z}{\partial\varphi}
 -
@@ -219,7 +218,7 @@ $$</div>
 \frac{\partial E_z}{\partial r}
 =i\omega\mu H_\varphi.
 $$</div>
-<p>После замены $\partial/\partial z\to i\gamma$:</p>
+<p>Replacing $\partial/\partial z\to i\gamma$ gives</p>
 <div class="math-block">$$
 \frac{1}{r}\frac{\partial E_z}{\partial\varphi}
 -i\gamma E_\varphi
@@ -233,11 +232,11 @@ i\gamma E_r
 =i\omega\mu H_\varphi.
 \tag{4.2}
 $$</div>
-<p>Компоненты уравнения</p>
+<p>The components of the equation</p>
 <div class="math-block">$$
 \nabla\times\mathbf H=-i\omega\varepsilon\mathbf E
 $$</div>
-<p>дают</p>
+<p>give</p>
 <div class="math-block">$$
 \frac{1}{r}\frac{\partial H_z}{\partial\varphi}
 -
@@ -250,7 +249,7 @@ $$</div>
 \frac{\partial H_z}{\partial r}
 =-i\omega\varepsilon E_\varphi.
 $$</div>
-<p>Снова подставляем $\partial/\partial z=i\gamma$:</p>
+<p>Again substituting $\partial/\partial z=i\gamma$ yields</p>
 <div class="math-block">$$
 \frac{1}{r}\frac{\partial H_z}{\partial\varphi}
 -i\gamma H_\varphi
@@ -264,7 +263,7 @@ i\gamma H_r
 =-i\omega\varepsilon E_\varphi.
 \tag{4.4}
 $$</div>
-<p>Нужно выразить $E_r,E_\varphi,H_r,H_\varphi$ через $E_z,H_z$. Начнем с $E_r$. Из (4.2):</p>
+<p>We need to express $E_r,E_\varphi,H_r,H_\varphi$ in terms of $E_z,H_z$. Start with $E_r$. From (4.2),</p>
 <div class="math-block">$$
 H_\varphi
 =
@@ -275,7 +274,7 @@ H_\varphi
 \frac{i}{\omega\mu}\frac{\partial E_z}{\partial r}.
 \tag{4.5}
 $$</div>
-<p>Подставляем (4.5) в (4.3):</p>
+<p>Substitute (4.5) into (4.3):</p>
 <div class="math-block">$$
 \frac{1}{r}\frac{\partial H_z}{\partial\varphi}
 -i\gamma
@@ -287,7 +286,7 @@ $$</div>
 =
 -i\omega\varepsilon E_r.
 $$</div>
-<p>Раскрываем скобки:</p>
+<p>Expand the brackets:</p>
 <div class="math-block">$$
 \frac{1}{r}\frac{\partial H_z}{\partial\varphi}
 -
@@ -297,7 +296,7 @@ $$</div>
 =
 -i\omega\varepsilon E_r.
 $$</div>
-<p>Переносим все с $E_r$ вправо:</p>
+<p>Move all terms containing $E_r$ to the right:</p>
 <div class="math-block">$$
 \frac{1}{r}\frac{\partial H_z}{\partial\varphi}
 +
@@ -308,7 +307,7 @@ $$</div>
 \omega\varepsilon-\frac{\gamma^2}{\omega\mu}
 \right)E_r.
 $$</div>
-<p>Приводим скобку к общему знаменателю:</p>
+<p>Combine the terms in brackets over a common denominator:</p>
 <div class="math-block">$$
 \omega\varepsilon-\frac{\gamma^2}{\omega\mu}
 =
@@ -316,7 +315,7 @@ $$</div>
 =
 \frac{\kappa^2}{\omega\mu}.
 $$</div>
-<p>Значит,</p>
+<p>Thus,</p>
 <div class="math-block">$$
 \frac{1}{r}\frac{\partial H_z}{\partial\varphi}
 +
@@ -324,7 +323,7 @@ $$</div>
 =
 -i\frac{\kappa^2}{\omega\mu}E_r.
 $$</div>
-<p>Умножаем на $\omega\mu$:</p>
+<p>Multiply by $\omega\mu$:</p>
 <div class="math-block">$$
 \frac{\omega\mu}{r}\frac{\partial H_z}{\partial\varphi}
 +
@@ -332,7 +331,7 @@ $$</div>
 =
 -i\kappa^2E_r.
 $$</div>
-<p>Так как $1/(-i)=i$, получаем</p>
+<p>Since $1/(-i)=i$, we obtain</p>
 <div class="math-block">$$
 E_r=
 \frac{i}{\kappa^2}
@@ -343,7 +342,7 @@ E_r=
 \right).
 \tag{4.6}
 $$</div>
-<p>Теперь выведем $E_\varphi$. Из (4.1):</p>
+<p>Next, derive $E_\varphi$. From (4.1),</p>
 <div class="math-block">$$
 H_r
 =
@@ -354,7 +353,7 @@ H_r
 \frac{\gamma}{\omega\mu}E_\varphi.
 \tag{4.7}
 $$</div>
-<p>Подставляем (4.7) в (4.4):</p>
+<p>Substitute (4.7) into (4.4):</p>
 <div class="math-block">$$
 i\gamma
 \left(
@@ -367,7 +366,7 @@ i\gamma
 =
 -i\omega\varepsilon E_\varphi.
 $$</div>
-<p>Раскрываем:</p>
+<p>Expanding gives</p>
 <div class="math-block">$$
 \frac{\gamma}{\omega\mu r}\frac{\partial E_z}{\partial\varphi}
 -
@@ -377,7 +376,7 @@ $$</div>
 =
 -i\omega\varepsilon E_\varphi.
 $$</div>
-<p>Переносим члены с $E_\varphi$ вправо:</p>
+<p>Move the terms containing $E_\varphi$ to the right:</p>
 <div class="math-block">$$
 \frac{\gamma}{\omega\mu r}\frac{\partial E_z}{\partial\varphi}
 -
@@ -390,7 +389,7 @@ $$</div>
 =
 -i\frac{\kappa^2}{\omega\mu}E_\varphi.
 $$</div>
-<p>Умножаем на $\omega\mu$:</p>
+<p>Multiply by $\omega\mu$:</p>
 <div class="math-block">$$
 \frac{\gamma}{r}\frac{\partial E_z}{\partial\varphi}
 -
@@ -398,7 +397,7 @@ $$</div>
 =
 -i\kappa^2E_\varphi.
 $$</div>
-<p>Отсюда</p>
+<p>Hence,</p>
 <div class="math-block">$$
 E_\varphi=
 \frac{i}{\kappa^2}
@@ -409,7 +408,7 @@ E_\varphi=
 \right).
 \tag{4.8}
 $$</div>
-<p>Аналогично для магнитного поля. Можно повторить те же действия, поменяв</p>
+<p>The magnetic field follows in the same way. Repeat the steps with the substitutions</p>
 <div class="math-block">$$
 \mathbf E\leftrightarrow\mathbf H,
 \qquad
@@ -417,7 +416,7 @@ $$</div>
 \qquad
 \omega\mu\to-\omega\varepsilon
 $$</div>
-<p>с учетом знака во втором уравнении Максвелла. Получаются компоненты</p>
+<p>taking account of the sign in the second Maxwell equation. The resulting components are</p>
 <div class="math-block">$$
 H_r=
 \frac{i}{\kappa^2}
@@ -438,7 +437,7 @@ H_\varphi=
 \right).
 \tag{4.10}
 $$</div>
-<p>Теперь свернем (4.6)-(4.10) в компактную векторную форму. Поперечный градиент:</p>
+<p>Equations (4.6)–(4.10) can now be combined into a compact vector form. The transverse gradient is</p>
 <div class="math-block">$$
 \nabla_\perp f
 =
@@ -446,7 +445,7 @@ $$</div>
 +
 \hat{\boldsymbol\varphi}\frac{1}{r}\frac{\partial f}{\partial\varphi}.
 $$</div>
-<p>Для любого $f$:</p>
+<p>For any function $f$,</p>
 <div class="math-block">$$
 \hat{\mathbf z}\times\nabla_\perp f
 =
@@ -454,7 +453,7 @@ $$</div>
 -
 \hat{\mathbf r}\frac{1}{r}\frac{\partial f}{\partial\varphi}.
 $$</div>
-<p>Поэтому (4.6) и (4.8) объединяются в</p>
+<p>Equations (4.6) and (4.8) therefore combine into</p>
 <div class="math-block">$$
 \mathbf E_\perp=
 \frac{i}{\kappa^2}
@@ -465,7 +464,7 @@ $$</div>
 \right),
 \tag{4.11}
 $$</div>
-<p>а (4.9) и (4.10) дают</p>
+<p>while (4.9) and (4.10) give</p>
 <div class="math-block">$$
 \mathbf H_\perp=
 \frac{i}{\kappa^2}
@@ -476,89 +475,89 @@ $$</div>
 \right).
 \tag{4.12}
 $$</div>
-<p>Итак, если известны $E_z$ и $H_z$, то все поперечные компоненты находятся прямым дифференцированием. Поэтому задача о модах действительно сводится к двум шагам:</p>
+<p>Once $E_z$ and $H_z$ are known, all transverse components follow by direct differentiation. The mode problem therefore reduces to two steps:</p>
 <ol>
-<li>найти цилиндрические решения для $E_z,H_z$;</li>
-<li>наложить граничные условия на $r=a$ для тангенциальных компонент $E_z,H_z,E_\varphi,H_\varphi$.</li>
+<li>Find cylindrical solutions for $E_z,H_z$.</li>
+<li>Apply the boundary conditions at $r=a$ to the tangential components $E_z,H_z,E_\varphi,H_\varphi$.</li>
 </ol></div></details>
-<details class="chapter" id="section-5"><summary>5. Типы мод: TE, TM, HE, EH</summary><div class="chapter-body"><p>В цилиндрическом волноводе есть несколько семейств мод.</p>
-<p>Классификация TE/TM/HE/EH и использование гибридных мод как нормальных мод полого круглого волновода являются стандартной частью теории Marcatili-Schmeltzer. Для задач ввода-вывода и резонаторов низшая гибридная мода EH11 отдельно обсуждается у <a href="https://doi.org/10.1109/JQE.1972.1076875">Abrams, 1972</a>.</p>
-<p>TE-моды имеют</p>
+<details class="chapter" id="section-5"><summary>5. Mode families: TE, TM, HE, EH</summary><div class="chapter-body"><p>A cylindrical waveguide supports several families of modes.</p>
+<p>The TE/TM/HE/EH classification and the treatment of hybrid modes as normal modes of a hollow circular waveguide are standard elements of Marcatili–Schmeltzer theory. The lowest-order hybrid EH11 mode is discussed specifically for coupling and resonators by <a href="https://doi.org/10.1109/JQE.1972.1076875">Abrams, 1972</a>.</p>
+<p>TE modes satisfy</p>
 <div class="math-block">$$
 E_z=0,\qquad H_z\ne 0.
 $$</div>
-<p>TM-моды имеют</p>
+<p>TM modes satisfy</p>
 <div class="math-block">$$
 H_z=0,\qquad E_z\ne 0.
 $$</div>
-<p>Гибридные моды имеют одновременно</p>
+<p>Hybrid modes have both</p>
 <div class="math-block">$$
 E_z\ne 0,\qquad H_z\ne 0.
 $$</div>
-<p>Они делятся на семейства HE и EH. В строгой векторной теории различие связано с относительным вкладом электрической и магнитной продольных компонент, а в текущем численном расчете это различие отражено в выборе бесселевых корней:</p>
+<p>They are divided into HE and EH families. In rigorous vector theory, the distinction is related to the relative contributions of the longitudinal electric and magnetic components. In the present numerical model, it is represented by the choice of Bessel roots:</p>
 <div class="math-block">$$
 \mathrm{HE}_{n,m}:\quad u_{n,m}\approx j_{n-1,m},
 $$</div>
 <div class="math-block">$$
 \mathrm{EH}_{n,m}:\quad u_{n,m}\approx j_{n+1,m}.
 $$</div>
-<p>Здесь $j_{\ell,m}$ - $m$-й нуль функции Бесселя $J_\ell$:</p>
+<p>Here, $j_{\ell,m}$ is the $m$th zero of the Bessel function $J_\ell$:</p>
 <div class="math-block">$$
 J_\ell(j_{\ell,m})=0.
 $$</div>
-<p>В расчете также используются осесимметричные TE и TM семейства:</p>
+<p>The calculation also includes the axisymmetric TE and TM families:</p>
 <div class="math-block">$$
 \mathrm{TE}_{0,m}:\quad u_{0,m}\approx j_{1,m},
 $$</div>
 <div class="math-block">$$
 \mathrm{TM}_{0,m}:\quad u_{0,m}\approx j_{0,m}.
 $$</div>
-<p>Эти корни используются как начальные приближения для решения более точного комплексного характеристического уравнения.</p></div></details>
-<details class="chapter" id="section-6"><summary>6. Геометрический смысл параметра \(u\)</summary><div class="chapter-body"><p>Для моды внутри полости поперечное волновое число примерно равно</p>
+<p>These roots provide initial estimates for solving the more accurate complex characteristic equation.</p></div></details>
+<details class="chapter" id="section-6"><summary>6. Geometrical meaning of \(u\)</summary><div class="chapter-body"><p>For a mode inside the bore, the transverse wavenumber is approximately</p>
 <div class="math-block">$$
 k_\perp=\frac{u}{a}.
 $$</div>
-<p>Связь между полным волновым числом, поперечным волновым числом и продольной постоянной распространения:</p>
+<p>The total wavenumber, transverse wavenumber, and longitudinal propagation constant satisfy</p>
 <div class="math-block">$$
 k_0^2=\beta^2+k_\perp^2.
 $$</div>
-<p>Отсюда в беззатухательном приближении:</p>
+<p>In the lossless approximation, this gives</p>
 <div class="math-block">$$
 \beta\simeq\sqrt{k_0^2-\left(\frac{u}{a}\right)^2}.
 $$</div>
-<p>Это именно начальное приближение для действительной части $\gamma$ в коде:</p>
+<p>This is the initial estimate for the real part of $\gamma$ used in the code:</p>
 <div class="math-block">$$
 \beta_0=\sqrt{k_0^2-\left(\frac{u_0}{a}\right)^2}.
 $$</div>
-<p>Если ввести модальный угол $\theta_\mu$, то</p>
+<p>Introducing the modal angle $\theta_\mu$ gives</p>
 <div class="math-block">$$
 \sin\theta_\mu=\frac{k_\perp}{k_0}
 =\frac{u_\mu}{k_0a}.
 $$</div>
-<p>Следовательно,</p>
+<p>Therefore,</p>
 <div class="math-block">$$
 \theta_\mu=\arcsin\left(\frac{u_\mu}{k_0a}\right).
 $$</div>
-<p>Мода является распространяющейся, если</p>
+<p>A mode propagates if</p>
 <div class="math-block">$$
 u_\mu&lt;k_0a.
 $$</div>
-<p>Величина</p>
+<p>The quantity</p>
 <div class="math-block">$$
 u_{\rm cutoff}=k_0a
 $$</div>
-<p>играет роль верхней границы для распространяющихся мод.</p>
-<p>Для параметров по умолчанию:</p>
+<p>sets the upper limit for propagating modes.</p>
+<p>For the default parameters,</p>
 <div class="math-block">$$
 k_0a=\frac{2\pi}{800\cdot10^{-9}}\cdot150\cdot10^{-6}
 \approx1178.
 $$</div>
-<p>Это большое число. Поэтому даже умеренные углы входа соответствуют большим значениям $u$ и высоким индексам мод.</p></div></details>
-<details class="chapter" id="section-7"><summary>7. Характеристические уравнения для комплексной \(\gamma\)</summary><div class="chapter-body"><p>Точный расчет моды требует выполнить граничные условия на границе воздух-металл:</p>
+<p>This is a large number. Even moderate launch angles therefore correspond to large values of $u$ and high mode indices.</p></div></details>
+<details class="chapter" id="section-7"><summary>7. Characteristic equations for complex \(\gamma\)</summary><div class="chapter-body"><p>An exact mode calculation must satisfy the boundary conditions at the air–metal interface:</p>
 <div class="math-block">$$
 r=a.
 $$</div>
-<p>Тангенциальные компоненты полей должны быть непрерывны:</p>
+<p>The tangential field components must be continuous:</p>
 <div class="math-block">$$
 E_\varphi^{(i)}=E_\varphi^{(e)},\qquad
 E_z^{(i)}=E_z^{(e)},
@@ -567,24 +566,24 @@ $$</div>
 H_\varphi^{(i)}=H_\varphi^{(e)},\qquad
 H_z^{(i)}=H_z^{(e)}.
 $$</div>
-<p>Индекс $i$ означает внутреннюю область, индекс $e$ - металл.</p>
-<p>Ниже это делается явно: сначала задаются продольные поля внутри и снаружи, затем через формулы раздела 4 считаются $E_\varphi$ и $H_\varphi$, после этого граничные условия превращаются в однородную систему для амплитуд. Характеристическое уравнение появляется из условия нулевого определителя этой системы.</p>
-<p>Именно такой ход - от уравнений Максвелла к характеристическим уравнениям нормальных мод круглого полого волновода - лежит в основе работы <a href="https://doi.org/10.1002/j.1538-7305.1964.tb04108.x">Marcatili, Schmeltzer, 1964</a>. В коде характеристические уравнения записаны в форме, удобной для численного решения комплексного корня $\gamma$.</p>
-<h3>7.1. TE-уравнение</h3>
-<p>Для TE-моды</p>
+<p>The subscript $i$ denotes the interior, and $e$ denotes the metal.</p>
+<p>The derivation below proceeds explicitly: specify the longitudinal fields inside and outside, calculate $E_\varphi$ and $H_\varphi$ using Section 4, and turn the boundary conditions into a homogeneous system for the amplitudes. The characteristic equation follows by setting the determinant of this system to zero.</p>
+<p>This route from Maxwell's equations to the characteristic equations of the normal modes of a circular hollow waveguide underlies the work of <a href="https://doi.org/10.1002/j.1538-7305.1964.tb04108.x">Marcatili, Schmeltzer, 1964</a>. In the code, the characteristic equations are written in a form suitable for numerical solution for the complex root $\gamma$.</p>
+<h3>7.1. TE equation</h3>
+<p>For a TE mode,</p>
 <div class="math-block">$$
 E_z=0,\qquad H_z\ne0.
 $$</div>
-<p>В текущем коде для TE рассматриваются осесимметричные моды $n=0$. Тогда $\partial/\partial\varphi=0$, и продольное магнитное поле можно записать так:</p>
+<p>The current implementation considers axisymmetric TE modes, $n=0$. Then $\partial/\partial\varphi=0$, and the longitudinal magnetic field can be written as</p>
 <div class="math-block">$$
 H_z^{(i)}(r)=A J_0(k_i r)
 $$</div>
-<p>внутри капилляра и</p>
+<p>inside the capillary and</p>
 <div class="math-block">$$
 H_z^{(e)}(r)=B H_0^{(1)}(k_e r)
 $$</div>
-<p>в металле.</p>
-<p>Так как $E_z=0$, из формулы (4.8)</p>
+<p>in the metal.</p>
+<p>Since $E_z=0$, equation (4.8),</p>
 <div class="math-block">$$
 E_\varphi=
 \frac{i}{\kappa^2}
@@ -594,13 +593,13 @@ E_\varphi=
 \omega\mu\frac{\partial H_z}{\partial r}
 \right)
 $$</div>
-<p>остается</p>
+<p>reduces to</p>
 <div class="math-block">$$
 E_\varphi=
 -\frac{i\omega\mu}{\kappa^2}
 \frac{\partial H_z}{\partial r}.
 $$</div>
-<p>Внутри $\kappa^2=k_i^2$, поэтому</p>
+<p>Inside, $\kappa^2=k_i^2$, so</p>
 <div class="math-block">$$
 E_\varphi^{(i)}
 =
@@ -610,18 +609,18 @@ E_\varphi^{(i)}
 -\frac{i\omega\mu A}{k_i^2}
 k_i J_0&#x27;(k_i r).
 $$</div>
-<p>Используем тождество</p>
+<p>Use the identity</p>
 <div class="math-block">$$
 J_0&#x27;(x)=-J_1(x).
 $$</div>
-<p>Тогда на границе $r=a$:</p>
+<p>At the boundary $r=a$,</p>
 <div class="math-block">$$
 E_\varphi^{(i)}(a)
 =
 \frac{i\omega\mu A}{k_i}J_1(k_i a).
 \tag{7.1}
 $$</div>
-<p>Снаружи:</p>
+<p>Outside,</p>
 <div class="math-block">$$
 E_\varphi^{(e)}
 =
@@ -631,46 +630,46 @@ E_\varphi^{(e)}
 -\frac{i\omega\mu B}{k_e^2}
 k_e {H_0^{(1)}}&#x27;(k_e r).
 $$</div>
-<p>Для функции Ханкеля аналогично</p>
+<p>The corresponding identity for the Hankel function is</p>
 <div class="math-block">$$
 {H_0^{(1)}}&#x27;(x)=-H_1^{(1)}(x).
 $$</div>
-<p>Значит,</p>
+<p>Thus,</p>
 <div class="math-block">$$
 E_\varphi^{(e)}(a)
 =
 \frac{i\omega\mu B}{k_e}H_1^{(1)}(k_e a).
 \tag{7.2}
 $$</div>
-<p>Теперь применяем два граничных условия.</p>
-<p>Первое - непрерывность $H_z$:</p>
+<p>Now apply the two boundary conditions.</p>
+<p>The first is continuity of $H_z$:</p>
 <div class="math-block">$$
 A J_0(k_i a)
 =
 B H_0^{(1)}(k_e a).
 \tag{7.3}
 $$</div>
-<p>Второе - непрерывность $E_\varphi$:</p>
+<p>The second is continuity of $E_\varphi$:</p>
 <div class="math-block">$$
 \frac{i\omega\mu A}{k_i}J_1(k_i a)
 =
 \frac{i\omega\mu B}{k_e}H_1^{(1)}(k_e a).
 \tag{7.4}
 $$</div>
-<p>Сокращаем общий множитель $i\omega\mu$:</p>
+<p>Cancel the common factor $i\omega\mu$:</p>
 <div class="math-block">$$
 \frac{A}{k_i}J_1(k_i a)
 =
 \frac{B}{k_e}H_1^{(1)}(k_e a).
 \tag{7.5}
 $$</div>
-<p>Делим (7.5) на (7.3):</p>
+<p>Divide (7.5) by (7.3):</p>
 <div class="math-block">$$
 \frac{J_1(k_i a)}{k_iJ_0(k_i a)}
 =
 \frac{H_1^{(1)}(k_e a)}{k_eH_0^{(1)}(k_e a)}.
 $$</div>
-<p>Умножаем на $k_i$ и переносим все в одну сторону:</p>
+<p>Multiply by $k_i$ and bring all terms to one side:</p>
 <div class="math-block">$$
 \frac{k_i}{k_e}
 \frac{H_1^{(1)}(k_ea)}{H_0^{(1)}(k_ea)}
@@ -678,7 +677,7 @@ $$</div>
 \frac{J_1(k_ia)}{J_0(k_ia)}
 =0.
 $$</div>
-<p>Это и есть TE-характеристическое уравнение. В коде масштабированная функция Ханкеля обозначена как <code>hankel1e</code>, но отношение $H_1/H_0$ имеет тот же смысл:</p>
+<p>This is the TE characteristic equation. The code uses the scaled Hankel function <code>hankel1e</code>, but the ratio $H_1/H_0$ has the same meaning:</p>
 <div class="math-block">$$
 \left(\frac{k_i}{k_e}\right)
 \left(\frac{H_1(k_ea)}{H_0(k_ea)}\right)
@@ -686,19 +685,19 @@ $$</div>
 \frac{J_1(k_ia)}{J_0(k_ia)}
 =0.
 $$</div>
-<h3>7.2. TM-уравнение</h3>
-<p>Для TM-моды</p>
+<h3>7.2. TM equation</h3>
+<p>For a TM mode,</p>
 <div class="math-block">$$
 H_z=0,\qquad E_z\ne0.
 $$</div>
-<p>Для осесимметричной моды $n=0$ берем</p>
+<p>For the axisymmetric mode $n=0$, take</p>
 <div class="math-block">$$
 E_z^{(i)}(r)=A J_0(k_i r),
 $$</div>
 <div class="math-block">$$
 E_z^{(e)}(r)=B H_0^{(1)}(k_e r).
 $$</div>
-<p>Теперь нужна тангенциальная компонента $H_\varphi$. Из (4.10)</p>
+<p>We now need the tangential component $H_\varphi$. From (4.10),</p>
 <div class="math-block">$$
 H_\varphi=
 \frac{i}{\kappa^2}
@@ -708,13 +707,13 @@ H_\varphi=
 \omega\varepsilon\frac{\partial E_z}{\partial r}
 \right).
 $$</div>
-<p>Так как $H_z=0$ и $n=0$:</p>
+<p>Since $H_z=0$ and $n=0$,</p>
 <div class="math-block">$$
 H_\varphi=
 \frac{i\omega\varepsilon}{\kappa^2}
 \frac{\partial E_z}{\partial r}.
 $$</div>
-<p>Внутри капилляра $\varepsilon_i=\varepsilon_0$ и $\kappa^2=k_i^2$:</p>
+<p>Inside the capillary, $\varepsilon_i=\varepsilon_0$ and $\kappa^2=k_i^2$:</p>
 <div class="math-block">$$
 H_\varphi^{(i)}
 =
@@ -724,7 +723,7 @@ H_\varphi^{(i)}
 \frac{i\omega\varepsilon_0 A}{k_i^2}
 k_iJ_0&#x27;(k_i r).
 $$</div>
-<p>Используем $J_0&#x27;(x)=-J_1(x)$:</p>
+<p>Using $J_0&#x27;(x)=-J_1(x)$ gives</p>
 <div class="math-block">$$
 H_\varphi^{(i)}(a)
 =
@@ -732,7 +731,7 @@ H_\varphi^{(i)}(a)
 J_1(k_i a).
 \tag{7.6}
 $$</div>
-<p>В металле $\varepsilon_e=\varepsilon_0 v^2$ и $\kappa^2=k_e^2$:</p>
+<p>In the metal, $\varepsilon_e=\varepsilon_0 v^2$ and $\kappa^2=k_e^2$:</p>
 <div class="math-block">$$
 H_\varphi^{(e)}
 =
@@ -742,7 +741,7 @@ H_\varphi^{(e)}
 \frac{i\omega\varepsilon_0v^2B}{k_e}
 {H_0^{(1)}}&#x27;(k_e r).
 $$</div>
-<p>Так как ${H_0^{(1)}}&#x27;(x)=-H_1^{(1)}(x)$:</p>
+<p>Since ${H_0^{(1)}}&#x27;(x)=-H_1^{(1)}(x)$,</p>
 <div class="math-block">$$
 H_\varphi^{(e)}(a)
 =
@@ -750,35 +749,35 @@ H_\varphi^{(e)}(a)
 H_1^{(1)}(k_e a).
 \tag{7.7}
 $$</div>
-<p>Непрерывность $E_z$:</p>
+<p>Continuity of $E_z$ gives</p>
 <div class="math-block">$$
 A J_0(k_i a)
 =
 B H_0^{(1)}(k_e a).
 \tag{7.8}
 $$</div>
-<p>Непрерывность $H_\varphi$:</p>
+<p>Continuity of $H_\varphi$ gives</p>
 <div class="math-block">$$
 -\frac{i\omega\varepsilon_0 A}{k_i}J_1(k_i a)
 =
 -\frac{i\omega\varepsilon_0v^2B}{k_e}H_1^{(1)}(k_e a).
 \tag{7.9}
 $$</div>
-<p>Сокращаем $-i\omega\varepsilon_0$:</p>
+<p>Cancel $-i\omega\varepsilon_0$:</p>
 <div class="math-block">$$
 \frac{A}{k_i}J_1(k_i a)
 =
 \frac{v^2B}{k_e}H_1^{(1)}(k_e a).
 \tag{7.10}
 $$</div>
-<p>Делим (7.10) на (7.8):</p>
+<p>Divide (7.10) by (7.8):</p>
 <div class="math-block">$$
 \frac{J_1(k_i a)}{k_iJ_0(k_i a)}
 =
 \frac{v^2H_1^{(1)}(k_e a)}
 {k_eH_0^{(1)}(k_e a)}.
 $$</div>
-<p>Умножаем на $k_iJ_0(k_i a)$ и переносим:</p>
+<p>Multiply by $k_iJ_0(k_i a)$ and rearrange:</p>
 <div class="math-block">$$
 v^2\frac{k_i}{k_e}
 \frac{H_1^{(1)}(k_ea)}{H_0^{(1)}(k_ea)}
@@ -787,7 +786,7 @@ J_0(k_ia)
 J_1(k_ia)
 =0.
 $$</div>
-<p>Это TM-характеристическое уравнение. То же самое в форме кода:</p>
+<p>This is the TM characteristic equation. In the notation used by the code,</p>
 <div class="math-block">$$
 v^2
 \left(\frac{k_i}{k_e}\right)
@@ -797,27 +796,27 @@ J_0(k_ia)
 J_1(k_ia)
 =0.
 $$</div>
-<p>Множитель $v^2=\varepsilon_m$ появляется из граничного условия для магнитного поля и из связи $\mathbf D=\varepsilon\mathbf E$ в металле.</p>
-<h3>7.3. Гибридное уравнение HE/EH</h3>
-<p>Для гибридных мод обе продольные компоненты ненулевые:</p>
+<p>The factor $v^2=\varepsilon_m$ arises from the magnetic-field boundary condition and the relation $\mathbf D=\varepsilon\mathbf E$ in the metal.</p>
+<h3>7.3. Hybrid HE/EH equation</h3>
+<p>For hybrid modes, both longitudinal components are nonzero:</p>
 <div class="math-block">$$
 E_z\ne0,\qquad H_z\ne0.
 $$</div>
-<p>Пусть азимутальная зависимость равна $\exp(in\varphi)$. Тогда внутри капилляра:</p>
+<p>Let the azimuthal dependence be $\exp(in\varphi)$. Inside the capillary,</p>
 <div class="math-block">$$
 E_z^{(i)}=A J_n(k_i r)e^{in\varphi},
 $$</div>
 <div class="math-block">$$
 H_z^{(i)}=B J_n(k_i r)e^{in\varphi}.
 $$</div>
-<p>В металле:</p>
+<p>In the metal,</p>
 <div class="math-block">$$
 E_z^{(e)}=C H_n^{(1)}(k_e r)e^{in\varphi},
 $$</div>
 <div class="math-block">$$
 H_z^{(e)}=D H_n^{(1)}(k_e r)e^{in\varphi}.
 $$</div>
-<p>Из непрерывности продольных компонент на $r=a$:</p>
+<p>Continuity of the longitudinal components at $r=a$ gives</p>
 <div class="math-block">$$
 A J_n(k_i a)=C H_n^{(1)}(k_e a),
 \tag{7.11}
@@ -826,19 +825,19 @@ $$</div>
 B J_n(k_i a)=D H_n^{(1)}(k_e a).
 \tag{7.12}
 $$</div>
-<p>Отсюда внешние амплитуды выражаются через внутренние:</p>
+<p>The exterior amplitudes can therefore be expressed in terms of the interior amplitudes:</p>
 <div class="math-block">$$
 C=A\frac{J_n(k_i a)}{H_n^{(1)}(k_e a)},
 \qquad
 D=B\frac{J_n(k_i a)}{H_n^{(1)}(k_e a)}.
 \tag{7.13}
 $$</div>
-<p>Теперь используем тангенциальные компоненты из раздела 4. Так как</p>
+<p>Now use the tangential components from Section 4. Since</p>
 <div class="math-block">$$
 \frac{\partial}{\partial\varphi}e^{in\varphi}
 =in e^{in\varphi},
 $$</div>
-<p>то</p>
+<p>we have</p>
 <div class="math-block">$$
 E_\varphi=
 \frac{i}{\kappa^2}
@@ -867,19 +866,19 @@ H_\varphi=
 \frac{i\omega\varepsilon}{\kappa^2}\frac{\partial E_z}{\partial r}.
 \tag{7.15}
 $$</div>
-<p>Нужно записать производные через отношения функций на границе. Для этого вводим</p>
+<p>To express the derivatives through ratios of functions at the boundary, define</p>
 <div class="math-block">$$
 R_J=\frac{J_{n+1}(k_i a)}{J_n(k_i a)},
 \qquad
 R_H=\frac{H_{n+1}^{(1)}(k_e a)}{H_n^{(1)}(k_e a)}.
 \tag{7.16}
 $$</div>
-<p>Используем рекуррентное соотношение для цилиндрических функций:</p>
+<p>Use the recurrence relation for cylindrical functions:</p>
 <div class="math-block">$$
 Z_n&#x27;(x)=\frac{n}{x}Z_n(x)-Z_{n+1}(x),
 \tag{7.17}
 $$</div>
-<p>где $Z_n$ может быть $J_n$ или $H_n^{(1)}$. Поэтому</p>
+<p>where $Z_n$ can be either $J_n$ or $H_n^{(1)}$. Therefore,</p>
 <div class="math-block">$$
 \frac{J_n&#x27;(k_i a)}{J_n(k_i a)}
 =
@@ -892,7 +891,7 @@ $$</div>
 \frac{n}{k_e a}-R_H.
 \tag{7.19}
 $$</div>
-<p>Теперь пишем непрерывность $E_\varphi$. Подставляем (7.14) внутрь и наружу, затем используем (7.13), чтобы убрать $C,D$. После деления на общий множитель $J_n(k_i a)e^{in\varphi}$ получаем</p>
+<p>Next, impose continuity of $E_\varphi$. Substitute (7.14) for the interior and exterior fields, and use (7.13) to eliminate $C,D$. Dividing by the common factor $J_n(k_i a)e^{in\varphi}$ gives</p>
 <div class="math-block">$$
 -\frac{n\gamma}{a}
 \left(
@@ -914,7 +913,7 @@ i\omega\mu
 =0.
 \tag{7.20}
 $$</div>
-<p>Аналогично непрерывность $H_\varphi$ дает</p>
+<p>Similarly, continuity of $H_\varphi$ gives</p>
 <div class="math-block">$$
 i\omega\varepsilon_0
 \left[
@@ -936,7 +935,7 @@ i\omega\varepsilon_0
 =0.
 \tag{7.21}
 $$</div>
-<p>Уравнения (7.20)-(7.21) - это однородная система для амплитуд $A$ и $B$:</p>
+<p>Equations (7.20)–(7.21) form a homogeneous system for the amplitudes $A$ and $B$:</p>
 <div class="math-block">$$
 \begin{pmatrix}
 M_{EE} &amp; M_{EH}\\
@@ -953,18 +952,18 @@ B
 \end{pmatrix}.
 \tag{7.22}
 $$</div>
-<p>Нетривиальное решение существует, только если</p>
+<p>A nontrivial solution exists only if</p>
 <div class="math-block">$$
 M_{EE}M_{HH}-M_{EH}M_{HE}=0.
 \tag{7.23}
 $$</div>
-<p>Покажем, как из (7.20)-(7.21) появляется компактная форма. Введем</p>
+<p>To obtain a compact form from (7.20)–(7.21), define</p>
 <div class="math-block">$$
 \Delta=
 \frac{1}{k_i^2}-\frac{1}{k_e^2}.
 \tag{7.24}
 $$</div>
-<p>Тогда коэффициенты при $A$ и $B$ в (7.20) можно записать как</p>
+<p>The coefficients of $A$ and $B$ in (7.20) can then be written as</p>
 <div class="math-block">$$
 M_{EE}=-\frac{n\gamma}{a}\Delta,
 \tag{7.25}
@@ -973,7 +972,7 @@ $$</div>
 M_{EH}=-i\omega\mu a\,T_{\rm TE},
 \tag{7.26}
 $$</div>
-<p>если определить</p>
+<p>with the definitions</p>
 <div class="math-block">$$
 T_{\rm TE}
 =
@@ -988,7 +987,7 @@ n\left[
 \frac{R_J}{k_ia}.
 \tag{7.27}
 $$</div>
-<p>Действительно,</p>
+<p>Indeed,</p>
 <div class="math-block">$$
 aT_{\rm TE}
 =
@@ -1001,8 +1000,8 @@ aT_{\rm TE}
 -
 \frac{R_J}{k_i},
 $$</div>
-<p>что совпадает со скобкой при $B$ в (7.20).</p>
-<p>Аналогично из (7.21):</p>
+<p>which matches the bracket multiplying $B$ in (7.20).</p>
+<p>Similarly, from (7.21),</p>
 <div class="math-block">$$
 M_{HH}=-\frac{n\gamma}{a}\Delta,
 \tag{7.28}
@@ -1011,7 +1010,7 @@ $$</div>
 M_{HE}=i\omega\varepsilon_0 a\,T_{\rm TM},
 \tag{7.29}
 $$</div>
-<p>где</p>
+<p>where</p>
 <div class="math-block">$$
 T_{\rm TM}
 =
@@ -1026,11 +1025,11 @@ v^2\frac{R_H}{k_ea}
 \frac{R_J}{k_ia}.
 \tag{7.30}
 $$</div>
-<p>Теперь раскрываем определитель:</p>
+<p>Now expand the determinant:</p>
 <div class="math-block">$$
 M_{EE}M_{HH}-M_{EH}M_{HE}=0.
 $$</div>
-<p>Первое произведение:</p>
+<p>The first product is</p>
 <div class="math-block">$$
 M_{EE}M_{HH}
 =
@@ -1041,18 +1040,18 @@ M_{EE}M_{HH}
 \frac{n^2\gamma^2}{a^2}\Delta^2.
 \tag{7.31}
 $$</div>
-<p>Второе произведение:</p>
+<p>The second product is</p>
 <div class="math-block">$$
 M_{EH}M_{HE}
 =
 \left(-i\omega\mu aT_{\rm TE}\right)
 \left(i\omega\varepsilon_0 aT_{\rm TM}\right).
 $$</div>
-<p>Так как</p>
+<p>Since</p>
 <div class="math-block">$$
 (-i)i=1,
 $$</div>
-<p>то</p>
+<p>we obtain</p>
 <div class="math-block">$$
 M_{EH}M_{HE}
 =
@@ -1060,18 +1059,18 @@ M_{EH}M_{HE}
 T_{\rm TE}T_{\rm TM}.
 \tag{7.32}
 $$</div>
-<p>В воздухе</p>
+<p>In air,</p>
 <div class="math-block">$$
 k_0^2=\omega^2\mu\varepsilon_0.
 $$</div>
-<p>Поэтому determinant condition принимает вид</p>
+<p>The determinant condition therefore becomes</p>
 <div class="math-block">$$
 \frac{n^2\gamma^2}{a^2}\Delta^2
 -
 k_0^2a^2T_{\rm TE}T_{\rm TM}=0.
 \tag{7.33}
 $$</div>
-<p>Делим на $k_0^2a^2$:</p>
+<p>Divide by $k_0^2a^2$:</p>
 <div class="math-block">$$
 T_{\rm TE}T_{\rm TM}
 =
@@ -1079,7 +1078,7 @@ T_{\rm TE}T_{\rm TM}
 \frac{\Delta^2}{a^4}.
 \tag{7.34}
 $$</div>
-<p>Но</p>
+<p>However,</p>
 <div class="math-block">$$
 \frac{\Delta}{a^2}
 =
@@ -1087,7 +1086,7 @@ $$</div>
 -
 \frac{1}{(k_ea)^2}.
 $$</div>
-<p>Следовательно,</p>
+<p>Therefore,</p>
 <div class="math-block">$$
 T_{\rm TE}T_{\rm TM}
 -
@@ -1100,8 +1099,8 @@ T_{\rm TE}T_{\rm TM}
 =0.
 \tag{7.35}
 $$</div>
-<p>Это уже та же структура, которая реализована в коде.</p>
-<p>В коде правая часть гибридного связывания записана как</p>
+<p>This now has the same structure as the equation implemented in the code.</p>
+<p>In the code, the right-hand side representing hybrid coupling is written as</p>
 <div class="math-block">$$
 Q=
 \left(\frac{n\gamma}{k_0}\right)^2
@@ -1111,67 +1110,67 @@ Q=
 \frac{1}{(k_ea)^2}
 \right]^2.
 $$</div>
-<p>Поэтому характеристическое уравнение имеет вид</p>
+<p>The characteristic equation is therefore</p>
 <div class="math-block">$$
 T_{\rm TE}T_{\rm TM}-Q=0.
 $$</div>
-<p>В коде это дополнительно умножается на $(k_ia)^2$:</p>
+<p>The code additionally multiplies this by $(k_ia)^2$:</p>
 <div class="math-block">$$
 \left(T_{\rm TE}T_{\rm TM}-Q\right)(k_ia)^2=0.
 $$</div>
-<p>Умножение на ненулевой множитель не меняет корни, но улучшает численный масштаб функции.</p>
-<p>Именно для этого уравнения важно использовать азимутальный индекс $n$, а не радиальный индекс $m$. В <code>README.md</code> отмечено, что старый ноутбук в одном месте ошибочно передавал радиальный индекс вместо азимутального.</p>
-<h3>7.4. Численное решение</h3>
-<p>Комплексное уравнение</p>
+<p>Multiplication by a nonzero factor leaves the roots unchanged while improving the numerical scaling of the function.</p>
+<p>This equation requires the azimuthal index $n$, not the radial index $m$. The original project README records that an earlier notebook incorrectly passed the radial index in one location.</p>
+<h3>7.4. Numerical solution</h3>
+<p>The complex equation</p>
 <div class="math-block">$$
 F(\gamma)=0
 $$</div>
-<p>решается как система двух вещественных уравнений:</p>
+<p>is solved as a system of two real equations:</p>
 <div class="math-block">$$
 \mathrm{Re}\,F(\beta+i\alpha_{\rm amp})=0,
 $$</div>
 <div class="math-block">$$
 \mathrm{Im}\,F(\beta+i\alpha_{\rm amp})=0.
 $$</div>
-<p>Начальное приближение:</p>
+<p>The initial estimate is</p>
 <div class="math-block">$$
 \gamma_0=\beta_0+i\alpha_{{\rm amp},0}.
 $$</div>
-<p>Здесь</p>
+<p>Here,</p>
 <div class="math-block">$$
 \beta_0=\sqrt{k_0^2-\left(\frac{u_0}{a}\right)^2},
 $$</div>
-<p>а $\alpha_{{\rm amp},0}$ берется из оценки потерь Маркатили, деленной на 2, потому что оценка Маркатили задает потери мощности.</p>
-<p>После решения:</p>
+<p>and $\alpha_{{\rm amp},0}$ is taken as half the Marcatili loss estimate, since that estimate describes power attenuation.</p>
+<p>After solving,</p>
 <div class="math-block">$$
 n_{\rm eff}=\frac{\gamma}{k_0}.
 $$</div></div></details>
-<details class="chapter" id="section-8"><summary>8. Потери: связь комплексной \(\gamma\), Маркатили и лучевой модели</summary><div class="chapter-body"><h3>8.1. Потери через комплексную постоянную распространения</h3>
-<p>Поле одной моды:</p>
+<details class="chapter" id="section-8"><summary>8. Attenuation: complex \(\gamma\), Marcatili, and ray optics</summary><div class="chapter-body"><h3>8.1. Complex propagation constant</h3>
+<p>The field of a single mode is</p>
 <div class="math-block">$$
 \mathbf E_\mu(r,\varphi,z)
 =c_\mu\mathbf e_\mu(r,\varphi)\exp(i\gamma_\mu z).
 $$</div>
-<p>Пусть</p>
+<p>Let</p>
 <div class="math-block">$$
 \gamma_\mu=\beta_\mu+i\alpha_{\rm amp,\mu}.
 $$</div>
-<p>Тогда</p>
+<p>Then</p>
 <div class="math-block">$$
 |\mathbf E_\mu(z)|^2
 \propto
 \exp(-2\alpha_{\rm amp,\mu}z).
 $$</div>
-<p>Значит:</p>
+<p>Thus,</p>
 <div class="math-block">$$
 \alpha_{\rm pow,\mu}=2\alpha_{\rm amp,\mu}.
 $$</div>
-<p>Мощность моды на расстоянии $z$:</p>
+<p>The modal power at distance $z$ is</p>
 <div class="math-block">$$
 P_\mu(z)=P_\mu(0)\exp(-\alpha_{\rm pow,\mu}z).
 $$</div>
-<h3>8.2. Оценка Маркатили</h3>
-<p>В коде используется оценка затухания мощности для полого металлического волновода. Она соответствует результату Marcatili-Schmeltzer о том, что потери нормальных мод полого круглого волновода растут как $\lambda^2$ и падают как $a^{-3}$:</p>
+<h3>8.2. Marcatili estimate</h3>
+<p>The code uses a power-attenuation estimate for a hollow metallic waveguide. It follows the Marcatili–Schmeltzer result that normal-mode losses in a circular hollow waveguide scale as $\lambda^2$ and $a^{-3}$:</p>
 <div class="math-block">$$
 \alpha_{\rm M}
 =
@@ -1179,7 +1178,7 @@ $$</div>
 \frac{\lambda^2}{a^3}
 \mathrm{Re}\,\nu.
 $$</div>
-<p>Параметр $\nu$ зависит от семейства моды:</p>
+<p>The parameter $\nu$ depends on the mode family:</p>
 <div class="math-block">$$
 \nu_{\rm TE}=\frac{1}{\sqrt{v^2-1}},
 $$</div>
@@ -1191,49 +1190,49 @@ $$</div>
 =
 \frac{v^2+1}{2\sqrt{v^2-1}}.
 $$</div>
-<p>Эта формула имеет важную структуру:</p>
+<p>The key structure of this expression is</p>
 <div class="math-block">$$
 \alpha_{\rm M}\propto \frac{u^2\lambda^2}{a^3}.
 $$</div>
-<p>Следовательно:</p>
+<p>Consequently,</p>
 <ul>
-<li>моды с большим $u$ сильнее взаимодействуют со стенкой и сильнее затухают;</li>
-<li>увеличение радиуса резко уменьшает потери;</li>
-<li>более длинная волна в этой оценке увеличивает потери как $\lambda^2$ при фиксированном радиусе и материале.</li>
+<li>Modes with larger $u$ interact more strongly with the wall and undergo stronger attenuation.</li>
+<li>Increasing the radius sharply reduces the losses.</li>
+<li>At fixed radius and material properties, this estimate predicts losses increasing as $\lambda^2$ with wavelength.</li>
 </ul>
-<p>В коде амплитудное начальное приближение равно</p>
+<p>The initial amplitude-attenuation estimate in the code is</p>
 <div class="math-block">$$
 \alpha_{{\rm amp},0}
 =\frac{\alpha_{\rm M}}{2}.
 $$</div>
-<h3>8.3. Лучевая оценка потерь</h3>
-<p>Дополнительно в <code>attenuation.py</code> есть лучевая модель. Ее смысл соответствует работам <a href="https://doi.org/10.1109/JLT.1985.1074177">Miyagi, 1985</a>, <a href="https://doi.org/10.1364/JOSAA.6.000423">Matsuura et al., 1989</a> и <a href="https://doi.org/10.1364/JOSAA.10.000277">Saito et al., 1993</a>: для малых потерь волновая оценка затухания может быть записана в лучевой форме через коэффициент отражения от стенки и частоту столкновений луча со стенкой.</p>
-<p>Луч, идущий под углом $\theta$ к оси капилляра, отражается от стенки. Расстояние между соседними отражениями вдоль $z$ оценивается как</p>
+<h3>8.3. Ray-optical loss estimate</h3>
+<p>The module <code>attenuation.py</code> also contains a ray model. Its interpretation follows <a href="https://doi.org/10.1109/JLT.1985.1074177">Miyagi, 1985</a>, <a href="https://doi.org/10.1364/JOSAA.6.000423">Matsuura et al., 1989</a>, and <a href="https://doi.org/10.1364/JOSAA.10.000277">Saito et al., 1993</a>: in the low-loss limit, wave-based attenuation can be expressed in ray-optical terms through the wall reflection coefficient and the frequency of ray–wall encounters.</p>
+<p>A ray travelling at angle $\theta$ to the capillary axis reflects from the wall. The distance along $z$ between successive reflections is estimated as</p>
 <div class="math-block">$$
 \Delta z\simeq \frac{2a}{\tan\theta}.
 $$</div>
-<p>Число отражений на единицу длины:</p>
+<p>The number of reflections per unit length is</p>
 <div class="math-block">$$
 N_z\simeq\frac{1}{\Delta z}
 =\frac{\tan\theta}{2a}.
 $$</div>
-<p>Если средний коэффициент отражения по мощности равен $R$, то потери за одно отражение равны $1-R$. При малых потерях коэффициент затухания мощности:</p>
+<p>If the mean power reflectance is $R$, the loss per reflection is $1-R$. In the low-loss limit, the power attenuation coefficient is</p>
 <div class="math-block">$$
 \alpha_{\rm ray}
 \simeq
 (1-R)\frac{\tan\theta}{2a}.
 $$</div>
-<p>Именно это используется в коде:</p>
+<p>This is the expression used in the code:</p>
 <div class="math-block">$$
 \alpha_{\rm ray}(\theta)
 =
 \left[1-R_{\rm rough}(\theta)\right]\frac{\tan\theta}{2a}.
 $$</div>
-<p>Для плоской границы воздух-металл задается угол к нормали</p>
+<p>For a planar air–metal interface, the angle to the normal is</p>
 <div class="math-block">$$
 \psi=\frac{\pi}{2}-\theta.
 $$</div>
-<p>Коэффициенты Френеля:</p>
+<p>The Fresnel coefficients are</p>
 <div class="math-block">$$
 r_s=
 \frac{\cos\psi-v\sqrt{1-(\sin\psi/v)^2}}
@@ -1244,11 +1243,11 @@ r_p=
 \frac{\sqrt{1-(\sin\psi/v)^2}-v\cos\psi}
 {\sqrt{1-(\sin\psi/v)^2}+v\cos\psi}.
 $$</div>
-<p>Средний коэффициент отражения:</p>
+<p>The mean reflectance is</p>
 <div class="math-block">$$
 R=\frac{|r_s|^2+|r_p|^2}{2}.
 $$</div>
-<p>Если задана среднеквадратичная шероховатость стенки $\sigma$, код умножает $R$ на фактор</p>
+<p>If a root-mean-square wall roughness $\sigma$ is specified, the code multiplies $R$ by the factor</p>
 <div class="math-block">$$
 \exp\left[
 -
@@ -1257,9 +1256,9 @@ $$</div>
 \right)^2
 \right].
 $$</div>
-<p>По умолчанию $\sigma=0$, то есть шероховатость выключена.</p>
-<p>В <a href="https://doi.org/10.1364/JOSAA.6.000423">Matsuura et al., 1989</a> отдельно подчеркивается, что для металлических волноводов поверхностные нерегулярности существенно влияют на предсказание потерь. В нашем коде это отражено только простым множителем шероховатости; это грубое приближение, а не полноценная модель реальной поверхности.</p></div></details>
-<details class="chapter" id="section-9"><summary>9. Входной гауссов пучок</summary><div class="chapter-body"><p>Во входной плоскости $z=0$ поле пучка задается как гауссова огибающая с плоским фазовым наклоном:</p>
+<p>The default is $\sigma=0$, which disables the roughness correction.</p>
+<p><a href="https://doi.org/10.1364/JOSAA.6.000423">Matsuura et al., 1989</a> emphasize that surface irregularities have a substantial effect on predicted losses in metallic waveguides. The code accounts for this only through a simple roughness factor: it is a coarse approximation, not a complete model of a real surface.</p></div></details>
+<details class="chapter" id="section-9"><summary>9. Input Gaussian beam</summary><div class="chapter-body"><p>At the entrance plane $z=0$, the beam is specified by a Gaussian envelope with a linear phase tilt:</p>
 <div class="math-block">$$
 E_{\rm in}(x,y)
 =
@@ -1272,18 +1271,18 @@ E_{\rm in}(x,y)
 i k_0(\sin\theta_x\,x+\sin\theta_y\,y)
 \right].
 $$</div>
-<p>Здесь:</p>
+<p>Here,</p>
 <ul>
-<li>$w_0$ - радиус пучка;</li>
-<li>$(x_0,y_0)$ - смещение пятна относительно центра капилляра;</li>
-<li>$\theta_x,\theta_y$ - наклоны по двум поперечным осям;</li>
-<li>$\mathbf e_p=(p_x,p_y)$ - поперечная поляризация.</li>
+<li>$w_0$ is the beam radius;</li>
+<li>$(x_0,y_0)$ is the spot displacement from the capillary centre;</li>
+<li>$\theta_x,\theta_y$ are the tilts along the two transverse axes;</li>
+<li>$\mathbf e_p=(p_x,p_y)$ is the transverse polarization.</li>
 </ul>
-<p>В коде, если $w_0$ явно не задан, используется</p>
+<p>If $w_0$ is not specified explicitly, the code uses</p>
 <div class="math-block">$$
 w_0=0.3a.
 $$</div>
-<p>Поперечный волновой вектор пучка:</p>
+<p>The transverse wavevector of the beam is</p>
 <div class="math-block">$$
 k_x=k_0\sin\theta_x,\qquad
 k_y=k_0\sin\theta_y,
@@ -1291,11 +1290,11 @@ $$</div>
 <div class="math-block">$$
 k_\perp=\sqrt{k_x^2+k_y^2}.
 $$</div>
-<p>Если наклон задается полярным углом $\theta$, то</p>
+<p>If the tilt is specified by the polar angle $\theta$,</p>
 <div class="math-block">$$
 k_\perp=k_0\sin\theta.
 $$</div>
-<p>В полярных координатах при центрированном пучке:</p>
+<p>In polar coordinates, for a centred beam,</p>
 <div class="math-block">$$
 E_{\rm in}(r,\varphi)
 =
@@ -1305,49 +1304,49 @@ E_{\rm in}(r,\varphi)
 i k_\perp r\cos(\varphi-\varphi_k)
 \right],
 $$</div>
-<p>где $\varphi_k$ - азимут направления наклона.</p></div></details>
-<details class="chapter" id="section-10"><summary>10. Почему наклонный пучок возбуждает высокие моды</summary><div class="chapter-body"><p>Мода с параметром $u_\mu$ имеет поперечное волновое число</p>
+<p>where $\varphi_k$ is the azimuth of the tilt direction.</p></div></details>
+<details class="chapter" id="section-10"><summary>10. Why a tilted beam excites high-order modes</summary><div class="chapter-body"><p>A mode with parameter $u_\mu$ has transverse wavenumber</p>
 <div class="math-block">$$
 k_{\perp,\mu}=\frac{u_\mu}{a}.
 $$</div>
-<p>Входной пучок имеет поперечное волновое число</p>
+<p>The input beam has transverse wavenumber</p>
 <div class="math-block">$$
 k_\perp=k_0\sin\theta.
 $$</div>
-<p>Максимальное возбуждение ожидается при согласовании:</p>
+<p>The strongest excitation is expected under the matching condition</p>
 <div class="math-block">$$
 \frac{u_\mu}{a}\simeq k_0\sin\theta.
 $$</div>
-<p>Отсюда центральное значение модального пакета:</p>
+<p>The centre of the modal packet is therefore</p>
 <div class="math-block">$$
 u_{\rm target}=k_0a\sin\theta.
 $$</div>
-<p>Это одна из ключевых формул расчета.</p>
-<p>Для параметров по умолчанию:</p>
+<p>This is one of the key equations of the calculation.</p>
+<p>For the default parameters,</p>
 <div class="math-block">$$
 k_0a\approx1178.
 $$</div>
-<p>При $\theta=15^\circ$:</p>
+<p>At $\theta=15^\circ$,</p>
 <div class="math-block">$$
 u_{\rm target}\approx1178\sin15^\circ\approx305.
 $$</div>
-<p>При $\theta=30^\circ$:</p>
+<p>At $\theta=30^\circ$,</p>
 <div class="math-block">$$
 u_{\rm target}\approx1178\sin30^\circ\approx589.
 $$</div>
-<p>Следовательно, наклонный пучок под углами десятки градусов не может корректно описываться только несколькими низшими модами с $u\sim1\ldots20$. Нужно выбирать моды около большого $u_{\rm target}$.</p>
-<p>Эта часть является развитием стандартной модальной картины Marcatili-Schmeltzer под конкретную задачу наклонного гауссова ввода: вместо отбора по малым индексам $n,m$ код отбирает моды по согласованию поперечного волнового числа.</p></div></details>
-<details class="chapter" id="section-11"><summary>11. Вывод ширины окна по \(u\)</summary><div class="chapter-body"><p>Ширина возбуждаемого пакета по $u$ определяется угловым спектром гауссова пучка.</p>
-<p>Рассмотрим одномерный гауссов множитель</p>
+<p>A beam tilted by tens of degrees therefore cannot be described accurately using only a few low-order modes with $u\sim1\ldots20$. Modes must be selected near the large value of $u_{\rm target}$.</p>
+<p>This extends the standard Marcatili–Schmeltzer modal picture to tilted Gaussian input: instead of selecting small indices $n,m$, the code selects modes by matching the transverse wavenumber.</p></div></details>
+<details class="chapter" id="section-11"><summary>11. Derivation of the selection width in \(u\)</summary><div class="chapter-body"><p>The width of the excited packet in $u$ is determined by the angular spectrum of the Gaussian beam.</p>
+<p>Consider the one-dimensional Gaussian factor</p>
 <div class="math-block">$$
 f(x)=\exp\left(-\frac{x^2}{w_0^2}\right).
 $$</div>
-<p>Его фурье-образ по поперечному волновому числу имеет вид</p>
+<p>Its Fourier transform with respect to the transverse wavenumber has the form</p>
 <div class="math-block">$$
 \tilde f(k_x)\propto
 \exp\left(-\frac{w_0^2 k_x^2}{4}\right).
 $$</div>
-<p>Если пучок наклонен, спектр сдвигается к $k_x=k_{\perp,0}$:</p>
+<p>For a tilted beam, the spectrum shifts to $k_x=k_{\perp,0}$:</p>
 <div class="math-block">$$
 \tilde f(k_x)\propto
 \exp\left[
@@ -1355,7 +1354,7 @@ $$</div>
 \frac{w_0^2(k_x-k_{\perp,0})^2}{4}
 \right].
 $$</div>
-<p>Мощность пропорциональна квадрату амплитуды:</p>
+<p>Power is proportional to the squared amplitude:</p>
 <div class="math-block">$$
 |\tilde f(k_x)|^2
 \propto
@@ -1364,27 +1363,27 @@ $$</div>
 \frac{w_0^2(k_x-k_{\perp,0})^2}{2}
 \right].
 $$</div>
-<p>Пусть мы хотим оставить моды, для которых относительная спектральная мощность не меньше $p_{\min}$. Тогда</p>
+<p>Suppose we retain modes whose relative spectral power is at least $p_{\min}$. Then</p>
 <div class="math-block">$$
 \exp\left(-\frac{w_0^2\Delta k_\perp^2}{2}\right)
 =p_{\min}.
 $$</div>
-<p>Берем логарифм:</p>
+<p>Taking the logarithm gives</p>
 <div class="math-block">$$
 -\frac{w_0^2\Delta k_\perp^2}{2}
 =\ln p_{\min}.
 $$</div>
-<p>Так как $\ln p_{\min}&lt;0$:</p>
+<p>Since $\ln p_{\min}&lt;0$,</p>
 <div class="math-block">$$
 \Delta k_\perp
 =
 \frac{\sqrt{2\ln(1/p_{\min})}}{w_0}.
 $$</div>
-<p>Переход от $k_\perp$ к $u$ задается формулой</p>
+<p>The conversion from $k_\perp$ to $u$ is</p>
 <div class="math-block">$$
 u=ak_\perp.
 $$</div>
-<p>Поэтому</p>
+<p>Therefore,</p>
 <div class="math-block">$$
 \Delta u
 =
@@ -1393,39 +1392,39 @@ a\Delta k_\perp
 \frac{a}{w_0}
 \sqrt{2\ln(1/p_{\min})}.
 $$</div>
-<p>В коде:</p>
+<p>In the code,</p>
 <div class="math-block">$$
 \Delta u
 =
 \frac{a}{w_0}
 \sqrt{2\ln(1/p_{\min})}.
 $$</div>
-<p>Окно отбора:</p>
+<p>The selection window is</p>
 <div class="math-block">$$
 u_{\min}=\max(0,u_{\rm target}-\Delta u),
 $$</div>
 <div class="math-block">$$
 u_{\max}=\min(k_0a,u_{\rm target}+\Delta u).
 $$</div></div></details>
-<details class="chapter" id="section-12"><summary>12. Угловые гармоники и формула Якоби-Ангера</summary><div class="chapter-body"><p>Наклонная плоская фаза в цилиндрических координатах:</p>
+<details class="chapter" id="section-12"><summary>12. Angular harmonics and the Jacobi–Anger expansion</summary><div class="chapter-body"><p>The tilted plane-wave phase in cylindrical coordinates is</p>
 <div class="math-block">$$
 \exp\left[
 i k_\perp r\cos(\varphi-\varphi_k)
 \right].
 $$</div>
-<p>Используем формулу Якоби-Ангера:</p>
+<p>Use the Jacobi–Anger expansion:</p>
 <div class="math-block">$$
 \exp(i x\cos\phi)
 =
 \sum_{q=-\infty}^{\infty}
 i^q J_q(x)\exp(iq\phi).
 $$</div>
-<p>В нашей задаче:</p>
+<p>In this problem,</p>
 <div class="math-block">$$
 x=k_\perp r,\qquad
 \phi=\varphi-\varphi_k.
 $$</div>
-<p>Поэтому</p>
+<p>Therefore,</p>
 <div class="math-block">$$
 \exp\left[
 i k_\perp r\cos(\varphi-\varphi_k)
@@ -1435,20 +1434,20 @@ i k_\perp r\cos(\varphi-\varphi_k)
 i^qJ_q(k_\perp r)
 \exp[iq(\varphi-\varphi_k)].
 $$</div>
-<p>Это показывает, что наклонный пучок содержит много азимутальных гармоник $q$.</p>
-<p>Функция $J_q(x)$ мала, если порядок $q$ значительно больше аргумента $x$. Основная область пучка имеет $r\sim w_0$ для центрированного пучка. Поэтому грубо:</p>
+<p>This shows that a tilted beam contains many azimuthal harmonics $q$.</p>
+<p>The function $J_q(x)$ is small when its order $q$ is much larger than its argument $x$. A centred beam occupies mainly the region $r\sim w_0$, giving the rough estimate</p>
 <div class="math-block">$$
 q\lesssim k_\perp w_0.
 $$</div>
-<p>Если пучок смещен на расстояние</p>
+<p>If the beam is displaced by a distance</p>
 <div class="math-block">$$
 r_0=\sqrt{x_0^2+y_0^2},
 $$</div>
-<p>то значимая область поля находится около $r\sim r_0+w_0$. Поэтому оценка расширяется:</p>
+<p>the region of significant field extends to approximately $r\sim r_0+w_0$. The estimate becomes</p>
 <div class="math-block">$$
 q_{\max}\sim k_\perp(r_0+w_0).
 $$</div>
-<p>В коде используется более практичная формула:</p>
+<p>The code uses the more practical expression</p>
 <div class="math-block">$$
 q_{\rm estimate}
 =
@@ -1459,171 +1458,171 @@ q_{\max}
 =
 \left\lceil q_{\rm estimate}+q_{\rm margin}\right\rceil,
 $$</div>
-<p>где по умолчанию $F=1$ и $q_{\rm margin}=4$.</p>
-<p>Также накладывается ограничение:</p>
+<p>with defaults $F=1$ and $q_{\rm margin}=4$.</p>
+<p>The following limit is also imposed:</p>
 <div class="math-block">$$
 q_{\max}\le \lceil u_{\max}\rceil+q_{\rm margin}.
 $$</div></div></details>
-<details class="chapter" id="section-13"><summary>13. Отбор кандидатных мод</summary><div class="chapter-body"><p>Алгоритм отбора мод делает две вещи:</p>
+<details class="chapter" id="section-13"><summary>13. Candidate-mode selection</summary><div class="chapter-body"><p>The mode-selection algorithm performs two steps:</p>
 <ol>
-<li>Выбирает только те бесселевы корни, которые попали в окно $[u_{\min},u_{\max}]$.</li>
-<li>Ограничивает азимутальные порядки сверху величиной $q_{\max}$.</li>
+<li>Select only Bessel roots within the window $[u_{\min},u_{\max}]$.</li>
+<li>Limit the azimuthal orders to $q_{\max}$.</li>
 </ol>
-<p>Для TE и TM:</p>
+<p>For TE and TM modes,</p>
 <div class="math-block">$$
 \mathrm{TE}_{0,m}:\quad u=j_{1,m},
 $$</div>
 <div class="math-block">$$
 \mathrm{TM}_{0,m}:\quad u=j_{0,m}.
 $$</div>
-<p>Для гибридных мод используется связь между семейным индексом $n$ и порядком поперечного профиля $q$:</p>
+<p>For hybrid modes, the family index $n$ and the transverse-profile order $q$ are related by</p>
 <div class="math-block">$$
 \mathrm{HE}_{n,m}:\quad q=n-1,\qquad u=j_{q,m},
 $$</div>
 <div class="math-block">$$
 \mathrm{EH}_{n,m}:\quad q=n+1,\qquad u=j_{q,m}.
 $$</div>
-<p>Отсюда:</p>
+<p>Hence,</p>
 <div class="math-block">$$
 \mathrm{HE}: n=q+1,
 $$</div>
 <div class="math-block">$$
 \mathrm{EH}: n=q-1.
 $$</div>
-<p>В коде для каждого $q$ перебираются нули $J_q$ в окне $u$ и создаются соответствующие <code>ModeSpec</code>.</p>
-<p>Для каждой моды также вычисляется модальный угол:</p>
+<p>For each $q$, the code iterates over the zeros of $J_q$ in the $u$ window and creates the corresponding <code>ModeSpec</code> objects.</p>
+<p>The modal angle is also calculated for each mode:</p>
 <div class="math-block">$$
 \theta_{\rm mode}
 =
 \arcsin\left(\frac{u}{k_0a}\right).
 $$</div>
-<p>Это удобно для графиков и диагностики: входной угол должен попадать в область модальных углов выбранных мод.</p></div></details>
-<details class="chapter" id="section-14"><summary>14. Поперечные профили, используемые в проекции</summary><div class="chapter-body"><p>Точный векторный профиль металлического волновода сложен. Для разложения входного поля в коде используются упрощенные поперечные профили на основе функций Бесселя.</p>
-<p>Обозначим</p>
+<p>This is useful for plots and diagnostics: the launch angle should lie within the range of modal angles covered by the selected modes.</p></div></details>
+<details class="chapter" id="section-14"><summary>14. Transverse profiles used in the projection</summary><div class="chapter-body"><p>The exact vector profile of a metallic-waveguide mode is complicated. To decompose the input field, the code uses simplified transverse profiles based on Bessel functions.</p>
+<p>Define</p>
 <div class="math-block">$$
 \rho=\frac{r}{a}.
 $$</div>
-<h3>14.1. TE-профиль</h3>
-<p>В коде:</p>
+<h3>14.1. TE profile</h3>
+<p>In the code,</p>
 <div class="math-block">$$
 E_x=-J_1(u\rho)\sin\varphi,
 $$</div>
 <div class="math-block">$$
 E_y=J_1(u\rho)\cos\varphi.
 $$</div>
-<p>То есть поле направлено по азимуту:</p>
+<p>The field is therefore azimuthally directed:</p>
 <div class="math-block">$$
 \mathbf e_{\rm TE}
 =J_1(u\rho)\,\hat{\boldsymbol\varphi}.
 $$</div>
-<h3>14.2. TM-профиль</h3>
-<p>В коде:</p>
+<h3>14.2. TM profile</h3>
+<p>In the code,</p>
 <div class="math-block">$$
 E_x=J_1(u\rho)\cos\varphi,
 $$</div>
 <div class="math-block">$$
 E_y=J_1(u\rho)\sin\varphi.
 $$</div>
-<p>То есть поле направлено радиально:</p>
+<p>The field is therefore radially directed:</p>
 <div class="math-block">$$
 \mathbf e_{\rm TM}
 =J_1(u\rho)\,\hat{\mathbf r}.
 $$</div>
-<h3>14.3. HE-профили</h3>
-<p>Для HE:</p>
+<h3>14.3. HE profiles</h3>
+<p>For HE modes,</p>
 <div class="math-block">$$
 q=n-1.
 $$</div>
-<p>Косинусная ориентация:</p>
+<p>The cosine orientation is</p>
 <div class="math-block">$$
 E_x=J_q(u\rho)\cos(q\varphi),
 $$</div>
 <div class="math-block">$$
 E_y=-J_q(u\rho)\sin(q\varphi).
 $$</div>
-<p>Синусная ориентация:</p>
+<p>The sine orientation is</p>
 <div class="math-block">$$
 E_x=J_q(u\rho)\sin(q\varphi),
 $$</div>
 <div class="math-block">$$
 E_y=J_q(u\rho)\cos(q\varphi).
 $$</div>
-<h3>14.4. EH-профили</h3>
-<p>Для EH:</p>
+<h3>14.4. EH profiles</h3>
+<p>For EH modes,</p>
 <div class="math-block">$$
 q=n+1.
 $$</div>
-<p>Косинусная ориентация:</p>
+<p>The cosine orientation is</p>
 <div class="math-block">$$
 E_x=J_q(u\rho)\cos(q\varphi),
 $$</div>
 <div class="math-block">$$
 E_y=J_q(u\rho)\sin(q\varphi).
 $$</div>
-<p>Синусная ориентация:</p>
+<p>The sine orientation is</p>
 <div class="math-block">$$
 E_x=J_q(u\rho)\sin(q\varphi),
 $$</div>
 <div class="math-block">$$
 E_y=-J_q(u\rho)\cos(q\varphi).
 $$</div>
-<p>Для гибридных мод обе ориентации добавляются в базис, потому что при смещении или наклоне входного пучка может возбуждаться любая линейная комбинация этих двух вырожденных профилей.</p></div></details>
-<details class="chapter" id="section-15"><summary>15. Нормировка мод и скалярное произведение</summary><div class="chapter-body"><p>Для поперечных полей используется скалярное произведение</p>
+<p>Both orientations of each hybrid mode are included in the basis, since displacement or tilt of the input beam can excite any linear combination of these two degenerate profiles.</p></div></details>
+<details class="chapter" id="section-15"><summary>15. Mode normalization and inner product</summary><div class="chapter-body"><p>The inner product for transverse fields is defined as</p>
 <div class="math-block">$$
 \langle \mathbf f,\mathbf g\rangle
 =
 \int_{r&lt;a}
 \left(f_x^*g_x+f_y^*g_y\right)\,dA.
 $$</div>
-<p>В цилиндрических координатах:</p>
+<p>In cylindrical coordinates,</p>
 <div class="math-block">$$
 dA=r\,dr\,d\varphi.
 $$</div>
-<p>Норма профиля:</p>
+<p>The profile norm is</p>
 <div class="math-block">$$
 \|\mathbf e_\mu\|
 =
 \sqrt{\langle\mathbf e_\mu,\mathbf e_\mu\rangle}.
 $$</div>
-<p>Нормированный профиль:</p>
+<p>The normalized profile is</p>
 <div class="math-block">$$
 \tilde{\mathbf e}_\mu
 =
 \frac{\mathbf e_\mu}{\|\mathbf e_\mu\|}.
 $$</div>
-<p>В коде нормировка считается численно на декартовой сетке:</p>
+<p>The code evaluates the normalization numerically on a Cartesian grid:</p>
 <div class="math-block">$$
 \|\mathbf e_\mu\|^2
 \approx
 \sum_{r_j&lt;a}
 \left(|E_x(x_j,y_j)|^2+|E_y(x_j,y_j)|^2\right)\Delta A.
 $$</div>
-<p>Входная мощность в условных единицах:</p>
+<p>The input power in arbitrary units is</p>
 <div class="math-block">$$
 P_{\rm in}
 =
 \int_{r&lt;a}
 \left(|E_x^{\rm in}|^2+|E_y^{\rm in}|^2\right)dA.
 $$</div>
-<p>Численно:</p>
+<p>Numerically,</p>
 <div class="math-block">$$
 P_{\rm in}
 \approx
 \sum_{r_j&lt;a}
 \left(|E_x^{\rm in}(x_j,y_j)|^2+|E_y^{\rm in}(x_j,y_j)|^2\right)\Delta A.
 $$</div></div></details>
-<details class="chapter" id="section-16"><summary>16. Модальное разложение как задача наименьших квадратов</summary><div class="chapter-body"><p>Мы хотим приблизить входное поле суммой мод:</p>
+<details class="chapter" id="section-16"><summary>16. Modal decomposition as a least-squares problem</summary><div class="chapter-body"><p>We seek to approximate the input field by a sum of modes:</p>
 <div class="math-block">$$
 \mathbf E_{\rm in}(x,y)
 \approx
 \sum_{\mu}c_\mu\tilde{\mathbf e}_\mu(x,y).
 $$</div>
-<p>Если моды были бы строго ортонормированы, коэффициент находился бы простым проектированием:</p>
+<p>If the modes were strictly orthonormal, each coefficient would follow from a simple projection:</p>
 <div class="math-block">$$
 c_\mu=\langle \tilde{\mathbf e}_\mu,\mathbf E_{\rm in}\rangle.
 $$</div>
-<p>Но в численной модели профили не являются идеально ортогональными, особенно для усеченного базиса и приближенных гибридных профилей. Поэтому код решает задачу наименьших квадратов.</p>
-<p>Пусть вектор $y$ содержит значения входного поля на сетке:</p>
+<p>In the numerical model, however, the profiles are not perfectly orthogonal, especially with a truncated basis and approximate hybrid profiles. The code therefore solves a least-squares problem.</p>
+<p>Let the vector $y$ contain the input-field values on the grid:</p>
 <div class="math-block">$$
 y=
 \begin{pmatrix}
@@ -1635,7 +1634,7 @@ E_y^{\rm in}(x_1,y_1)\sqrt{\Delta A}\\
 E_y^{\rm in}(x_N,y_N)\sqrt{\Delta A}
 \end{pmatrix}.
 $$</div>
-<p>Матрица $A$ содержит нормированные профили:</p>
+<p>The matrix $A$ contains the normalized profiles:</p>
 <div class="math-block">$$
 A=
 \begin{pmatrix}
@@ -1644,40 +1643,40 @@ e_1 &amp; e_2 &amp; \cdots &amp; e_M\\
 | &amp; | &amp; &amp; |
 \end{pmatrix}.
 $$</div>
-<p>Ищется вектор коэффициентов $c$:</p>
+<p>We seek the coefficient vector $c$:</p>
 <div class="math-block">$$
 Ac\approx y.
 $$</div>
-<p>Задача:</p>
+<p>The problem is</p>
 <div class="math-block">$$
 c=\arg\min_c\|Ac-y\|^2.
 $$</div>
-<p>Если $A^\dagger A$ невырождена, формальное решение:</p>
+<p>If $A^\dagger A$ is nonsingular, the formal solution is</p>
 <div class="math-block">$$
 c=(A^\dagger A)^{-1}A^\dagger y.
 $$</div>
-<p>На практике используется <code>numpy.linalg.lstsq</code>, то есть устойчивое численное решение.</p>
-<p>Мощность, восстановленная модальным базисом:</p>
+<p>In practice, <code>numpy.linalg.lstsq</code> provides a numerically stable solution.</p>
+<p>The power reconstructed by the modal basis is</p>
 <div class="math-block">$$
 P_{\rm coupled}=\|Ac\|^2.
 $$</div>
-<p>Невосстановленная мощность:</p>
+<p>The unreconstructed power is</p>
 <div class="math-block">$$
 P_{\rm residual}=P_{\rm in}-P_{\rm coupled}.
 $$</div>
-<p>Для диагностики часто используется величина</p>
+<p>A commonly used diagnostic quantity is</p>
 <div class="math-block">$$
 \eta_\mu=\frac{|c_\mu|^2}{P_{\rm in}}.
 $$</div>
-<p>Если профили близки к ортонормированным, $\eta_\mu$ можно интерпретировать как долю мощности в профиле. В общем случае это диагностическая величина, а не строгая энергетическая декомпозиция.</p>
-<p>Для физической моды с двумя вырожденными ориентациями код складывает веса ориентаций:</p>
+<p>If the profiles are nearly orthonormal, $\eta_\mu$ can be interpreted as the fraction of power in a profile. In general, it is a diagnostic weight rather than a rigorous energy decomposition.</p>
+<p>For a physical mode with two degenerate orientations, the code adds their weights:</p>
 <div class="math-block">$$
 \eta_{\mu,\rm total}
 =
 \sum_{s\in\{c,s\}}
 \frac{|c_{\mu s}|^2}{P_{\rm in}}.
 $$</div></div></details>
-<details class="chapter" id="section-17"><summary>17. Быстрая оценка возбуждения в полярных координатах</summary><div class="chapter-body"><p>Для предварительного отбора мод используется грубая проекция на полярной сетке. Входное поле:</p>
+<details class="chapter" id="section-17"><summary>17. Fast excitation estimate in polar coordinates</summary><div class="chapter-body"><p>A coarse projection on a polar grid is used for preliminary mode selection. The input field is</p>
 <div class="math-block">$$
 E_x=p_x
 \exp\left[
@@ -1694,12 +1693,12 @@ E_y=p_y
 \right]
 \exp[i(k_xx+k_yy)].
 $$</div>
-<p>В полярных координатах:</p>
+<p>In polar coordinates,</p>
 <div class="math-block">$$
 x=a\rho\cos\varphi,\qquad
 y=a\rho\sin\varphi.
 $$</div>
-<p>Интеграл для коэффициента имеет вид</p>
+<p>The integral for the coefficient has the form</p>
 <div class="math-block">$$
 c_\mu
 =
@@ -1708,8 +1707,8 @@ c_\mu
 \mathbf E_{\rm in}(\rho,\varphi)
 a^2\rho\,d\varphi\,d\rho.
 $$</div>
-<p>Численно радиальная часть считается квадратурой Гаусса-Лежандра по $\rho$, а угловая часть равномерной сеткой по $\varphi$.</p>
-<p>Для центрированного пучка угловой интеграл можно упростить аналитически. Из формулы Якоби-Ангера:</p>
+<p>Numerically, the radial integral is evaluated by Gauss–Legendre quadrature in $\rho$, and the angular integral on a uniform grid in $\varphi$.</p>
+<p>For a centred beam, the angular integral can be simplified analytically. The Jacobi–Anger expansion gives</p>
 <div class="math-block">$$
 \int_0^{2\pi}
 \exp[i k_\perp r\cos(\varphi-\varphi_k)]
@@ -1717,7 +1716,7 @@ $$</div>
 =
 2\pi i^q J_q(k_\perp r)\cos(q\varphi_k).
 $$</div>
-<p>Аналогично</p>
+<p>Similarly,</p>
 <div class="math-block">$$
 \int_0^{2\pi}
 \exp[i k_\perp r\cos(\varphi-\varphi_k)]
@@ -1725,7 +1724,7 @@ $$</div>
 =
 2\pi i^q J_q(k_\perp r)\sin(q\varphi_k).
 $$</div>
-<p>Тогда коэффициенты сводятся к радиальным интегралам вида</p>
+<p>The coefficients then reduce to radial integrals of the form</p>
 <div class="math-block">$$
 I_{\mu q}
 =
@@ -1736,12 +1735,12 @@ J_q(u_{\rm target}\rho)
 \exp\left[-\frac{(a\rho)^2}{w_0^2}\right]
 \rho\,d\rho.
 $$</div>
-<p>Эта формула объясняет, почему максимум возникает при</p>
+<p>This expression explains why the maximum occurs at</p>
 <div class="math-block">$$
 u_\mu\simeq u_{\rm target}.
 $$</div>
-<p>Произведение двух функций Бесселя дает большой вклад, когда их осцилляции согласованы.</p></div></details>
-<details class="chapter" id="section-18"><summary>18. Распространение модального поля</summary><div class="chapter-body"><p>После нахождения коэффициентов поле на расстоянии $z$:</p>
+<p>The product of the two Bessel functions makes a large contribution when their oscillations match.</p></div></details>
+<details class="chapter" id="section-18"><summary>18. Propagation of the modal field</summary><div class="chapter-body"><p>Once the coefficients have been found, the field at distance $z$ is</p>
 <div class="math-block">$$
 \mathbf E_\perp(r,\varphi,z)
 =
@@ -1749,11 +1748,11 @@ $$</div>
 c_\mu\tilde{\mathbf e}_\mu(r,\varphi)
 \exp(i\gamma_\mu z).
 $$</div>
-<p>С учетом</p>
+<p>Using</p>
 <div class="math-block">$$
 \gamma_\mu=\beta_\mu+i\alpha_{{\rm amp},\mu}
 $$</div>
-<p>получаем</p>
+<p>we obtain</p>
 <div class="math-block">$$
 \mathbf E_\perp(r,\varphi,z)
 =
@@ -1762,7 +1761,7 @@ c_\mu\tilde{\mathbf e}_\mu(r,\varphi)
 \exp(i\beta_\mu z)
 \exp(-\alpha_{{\rm amp},\mu}z).
 $$</div>
-<p>Интенсивность:</p>
+<p>The intensity is</p>
 <div class="math-block">$$
 I(r,\varphi,z)
 =
@@ -1770,7 +1769,7 @@ I(r,\varphi,z)
 \mathbf E_\perp(r,\varphi,z)
 \right|^2.
 $$</div>
-<p>Раскрывая квадрат:</p>
+<p>Expanding the squared magnitude gives</p>
 <div class="math-block">$$
 I
 =
@@ -1785,36 +1784,36 @@ c_\mu c_\nu^*
 \exp[i(\beta_\mu-\beta_\nu)z]
 \exp[-(\alpha_{{\rm amp},\mu}+\alpha_{{\rm amp},\nu})z].
 $$</div>
-<p>Первый член - сумма отдельных интенсивностей мод. Второй член - межмодовая интерференция. Именно он создает изменение поперечной картины вдоль капилляра.</p>
-<p>Если мод много и их $\beta_\mu$ заметно различаются, фазы быстро расходятся, и картина меняется на коротком продольном масштабе.</p></div></details>
-<details class="chapter" id="section-19"><summary>19. Модальная корреляция и длина расфазировки</summary><div class="chapter-body"><p>Для компактной оценки продольного масштаба используется распределение постоянных распространения $\beta_\mu$ с весами $w_\mu$.</p>
-<p>В качестве весов берутся модальные мощности или грубые оценки мощностей:</p>
+<p>The first term is the sum of the individual modal intensities. The second represents intermodal interference, which causes the transverse pattern to evolve along the capillary.</p>
+<p>If many modes are present and their $\beta_\mu$ differ appreciably, their phases diverge quickly and the pattern changes over a short longitudinal distance.</p></div></details>
+<details class="chapter" id="section-19"><summary>19. Modal correlation and dephasing length</summary><div class="chapter-body"><p>A compact estimate of the longitudinal scale uses the distribution of propagation constants $\beta_\mu$ with weights $w_\mu$.</p>
+<p>The weights are taken as the modal powers or their coarse estimates:</p>
 <div class="math-block">$$
 w_\mu\ge0.
 $$</div>
-<p>Среднее:</p>
+<p>The mean is</p>
 <div class="math-block">$$
 \bar\beta
 =
 \frac{\sum_\mu w_\mu\beta_\mu}
 {\sum_\mu w_\mu}.
 $$</div>
-<p>Дисперсия:</p>
+<p>The variance is</p>
 <div class="math-block">$$
 \sigma_\beta^2
 =
 \frac{\sum_\mu w_\mu(\beta_\mu-\bar\beta)^2}
 {\sum_\mu w_\mu}.
 $$</div>
-<p>Характерная длина расфазировки:</p>
+<p>The characteristic dephasing length is</p>
 <div class="math-block">$$
 L_\phi=\frac{2\pi}{\sigma_\beta}.
 $$</div>
-<p>Эта формула получается из условия, что типичный набег относительной фазы между модами за длину $L_\phi$ порядка $2\pi$:</p>
+<p>This expression follows from requiring the typical relative phase accumulated between modes over the distance $L_\phi$ to be of order $2\pi$:</p>
 <div class="math-block">$$
 \sigma_\beta L_\phi\sim2\pi.
 $$</div>
-<p>Для более детальной диагностики вводится модальная корреляция:</p>
+<p>For more detailed diagnostics, define the modal correlation:</p>
 <div class="math-block">$$
 C(z)
 =
@@ -1827,28 +1826,28 @@ w_\mu
 }
 {\left(\sum_\mu w_\mu\right)^2}.
 $$</div>
-<p>При $z=0$:</p>
+<p>At $z=0$,</p>
 <div class="math-block">$$
 C(0)=1.
 $$</div>
-<p>Если фазы мод разошлись, сумма комплексных фаз уменьшается, и $C(z)$ падает. Локальные пики $C(z)$ соответствуют расстояниям, где значимая часть модального пакета частично снова оказывается в фазе.</p>
-<p>Такой физический механизм хорошо согласуется с наблюдением field regeneration у <a href="https://doi.org/10.1364/AO.31.005086">Jenkins, Devereux, 1992</a>: если входной TEM00-пучок возбуждает несколько EH-мод, то при восстановлении их относительной фазы поперечное поле снова становится похожим на входное, а между такими точками может принимать другую форму.</p>
-<p>В коде из $C(z)$ извлекаются:</p>
+<p>As the modal phases diverge, the sum of complex phase factors decreases, and $C(z)$ falls. Local peaks in $C(z)$ mark distances where a significant part of the modal packet partially returns to phase alignment.</p>
+<p>This mechanism is consistent with the field regeneration observed by <a href="https://doi.org/10.1364/AO.31.005086">Jenkins, Devereux, 1992</a>: when an input TEM00 beam excites several EH modes, recovery of their relative phases makes the transverse field resemble the input again, while it can take a different form between these positions.</p>
+<p>The code extracts the following quantities from $C(z)$:</p>
 <div class="math-block">$$
 z_{\rm first\ peak},
 $$</div>
 <div class="math-block">$$
 z_{\rm best\ peak},
 $$</div>
-<p>и</p>
+<p>and</p>
 <div class="math-block">$$
 L_\phi=\frac{2\pi}{\sigma_\beta}.
 $$</div></div></details>
-<details class="chapter" id="section-20"><summary>20. Почему период уменьшается с углом</summary><div class="chapter-body"><p>Используем приближение</p>
+<details class="chapter" id="section-20"><summary>20. Why the period decreases with launch angle</summary><div class="chapter-body"><p>Use the approximation</p>
 <div class="math-block">$$
 \beta(u)=\sqrt{k_0^2-\left(\frac{u}{a}\right)^2}.
 $$</div>
-<p>Найдем производную:</p>
+<p>Differentiate:</p>
 <div class="math-block">$$
 \frac{d\beta}{du}
 =
@@ -1858,21 +1857,21 @@ k_0^2-\left(\frac{u}{a}\right)^2
 \right]^{-1/2}
 \left(-\frac{2u}{a^2}\right).
 $$</div>
-<p>Отсюда:</p>
+<p>Hence,</p>
 <div class="math-block">$$
 \frac{d\beta}{du}
 =
 -
 \frac{u}{a^2\beta}.
 $$</div>
-<p>Но</p>
+<p>However,</p>
 <div class="math-block">$$
 u=k_0a\sin\theta,
 $$</div>
 <div class="math-block">$$
 \beta=k_0\cos\theta.
 $$</div>
-<p>Подставляем:</p>
+<p>Substituting gives</p>
 <div class="math-block">$$
 \frac{d\beta}{du}
 =
@@ -1883,11 +1882,11 @@ $$</div>
 -
 \frac{\tan\theta}{a}.
 $$</div>
-<p>Если ширина пакета по $u$ равна</p>
+<p>If the packet width in $u$ is</p>
 <div class="math-block">$$
 \Delta u\sim\frac{a}{w_0},
 $$</div>
-<p>то ширина по $\beta$:</p>
+<p>the width in $\beta$ is</p>
 <div class="math-block">$$
 \sigma_\beta
 \sim
@@ -1897,7 +1896,7 @@ $$</div>
 =
 \frac{\tan\theta}{w_0}.
 $$</div>
-<p>Тогда</p>
+<p>Then</p>
 <div class="math-block">$$
 L_\phi
 \sim
@@ -1905,13 +1904,13 @@ L_\phi
 \sim
 \frac{2\pi w_0}{\tan\theta}.
 $$</div>
-<p>Это важная физическая оценка:</p>
+<p>This gives a useful physical estimate:</p>
 <ul>
-<li>при большем угле входа $\theta$ картина меняется быстрее;</li>
-<li>при большем радиусе пучка $w_0$ угловой спектр уже, поэтому картина меняется медленнее.</li>
+<li>At a larger launch angle $\theta$, the pattern evolves more rapidly.</li>
+<li>A larger beam radius $w_0$ gives a narrower angular spectrum, so the pattern evolves more slowly.</li>
 </ul></div></details>
-<details class="chapter" id="section-21"><summary>21. Времена пролета и импульсная модель</summary><div class="chapter-body"><p>Для импульсов в текущем коде учитывается только межмодовая задержка. Частотная дисперсия внутри каждой моды не учитывается.</p>
-<p>Стартуем с беззатухательной дисперсии моды:</p>
+<details class="chapter" id="section-21"><summary>21. Transit times and the pulse model</summary><div class="chapter-body"><p>The pulse model includes only intermodal delays. Frequency dispersion within each mode is neglected.</p>
+<p>Start from the lossless modal dispersion relation:</p>
 <div class="math-block">$$
 \beta(\omega)
 =
@@ -1921,13 +1920,13 @@ $$</div>
 \left(\frac{u}{a}\right)^2
 }.
 $$</div>
-<p>Групповая скорость:</p>
+<p>The group velocity is</p>
 <div class="math-block">$$
 v_g=\frac{d\omega}{d\beta}
 =
 \left(\frac{d\beta}{d\omega}\right)^{-1}.
 $$</div>
-<p>Найдем производную:</p>
+<p>Differentiate:</p>
 <div class="math-block">$$
 \frac{d\beta}{d\omega}
 =
@@ -1939,7 +1938,7 @@ $$</div>
 \right]^{-1/2}
 \frac{2\omega}{c^2}.
 $$</div>
-<p>Так как</p>
+<p>Since</p>
 <div class="math-block">$$
 \beta=
 \sqrt{
@@ -1948,29 +1947,29 @@ $$</div>
 \left(\frac{u}{a}\right)^2
 },
 $$</div>
-<p>то</p>
+<p>we obtain</p>
 <div class="math-block">$$
 \frac{d\beta}{d\omega}
 =
 \frac{\omega}{c^2\beta}.
 $$</div>
-<p>Следовательно:</p>
+<p>Therefore,</p>
 <div class="math-block">$$
 v_g
 =
 \frac{c^2\beta}{\omega}.
 $$</div>
-<p>Но</p>
+<p>However,</p>
 <div class="math-block">$$
 k_0=\frac{\omega}{c},
 $$</div>
-<p>поэтому</p>
+<p>so</p>
 <div class="math-block">$$
 v_g
 =
 c\frac{\beta}{k_0}.
 $$</div>
-<p>Подставляем</p>
+<p>Substitute</p>
 <div class="math-block">$$
 \beta=k_0
 \sqrt{
@@ -1978,7 +1977,7 @@ $$</div>
 \left(\frac{u}{k_0a}\right)^2
 }.
 $$</div>
-<p>Получаем:</p>
+<p>This gives</p>
 <div class="math-block">$$
 \frac{v_g}{c}
 =
@@ -1987,22 +1986,22 @@ $$</div>
 \left(\frac{u}{k_0a}\right)^2
 }.
 $$</div>
-<p>Именно эта формула используется в коде.</p>
-<p>Время прихода моды на расстоянии $z$:</p>
+<p>This is the expression used in the code.</p>
+<p>The arrival time of a mode at distance $z$ is</p>
 <div class="math-block">$$
 t_\mu(z)=\frac{z}{v_{g,\mu}}.
 $$</div>
-<p>Избыточная задержка относительно распространения со скоростью света:</p>
+<p>The excess delay relative to propagation at the speed of light is</p>
 <div class="math-block">$$
 \Delta t_\mu(z)
 =
 t_\mu(z)-\frac{z}{c}.
 $$</div>
-<p>Для дельта-импульса каждая мода дает отдельный приход с весом</p>
+<p>For a delta-function input pulse, each mode produces a separate arrival with weight</p>
 <div class="math-block">$$
 w_\mu(z)=w_\mu(0)\exp(-\alpha_{{\rm pow},\mu}z).
 $$</div>
-<p>Для гауссова импульса по времени используется интенсивность</p>
+<p>A Gaussian temporal pulse is represented by the intensity</p>
 <div class="math-block">$$
 I_\mu(t,z)
 =
@@ -2015,34 +2014,34 @@ w_\mu(0)\exp(-\alpha_{{\rm pow},\mu}z)
 \right)^2
 \right].
 $$</div>
-<p>Связь между FWHM и $\sigma_t$:</p>
+<p>The relation between FWHM and $\sigma_t$ is</p>
 <div class="math-block">$$
 \sigma_t
 =
 \frac{\mathrm{FWHM}}
 {2\sqrt{2\ln2}}.
 $$</div>
-<p>Полная временная интенсивность в модели:</p>
+<p>The total temporal intensity in this model is</p>
 <div class="math-block">$$
 I(t,z)
 =
 \sum_\mu I_\mu(t,z).
 $$</div>
-<p>Важные ограничения этой модели:</p>
+<p>The limitations of this model are:</p>
 <ul>
-<li>не учитывается спектральное расплытие внутри одной моды;</li>
-<li>не учитывается когерентная интерференция несущей частоты во временном сигнале;</li>
-<li>учитываются только разные групповые скорости мод и их потери.</li>
+<li>Intramodal dispersive broadening is neglected.</li>
+<li>Coherent interference at the carrier frequency is not included in the temporal signal.</li>
+<li>Only differences in modal group velocities and modal losses are included.</li>
 </ul></div></details>
-<details class="chapter" id="section-22"><summary>22. Полная цепочка расчета</summary><div class="chapter-body"><p>Ниже вся цепочка в порядке, в котором она фактически используется.</p>
-<h3>22.1. Задать параметры волновода</h3>
+<details class="chapter" id="section-22"><summary>22. Complete calculation pipeline</summary><div class="chapter-body"><p>The full sequence below follows the order used in the calculation.</p>
+<h3>22.1. Specify the waveguide parameters</h3>
 <div class="math-block">$$
 \lambda,\quad d,\quad a=d/2,\quad \varepsilon_m,\quad v=\sqrt{\varepsilon_m}.
 $$</div>
 <div class="math-block">$$
 k_0=\frac{2\pi}{\lambda}.
 $$</div>
-<h3>22.2. Задать входной пучок</h3>
+<h3>22.2. Specify the input beam</h3>
 <div class="math-block">$$
 w_0,\quad x_0,\quad y_0,\quad \theta_x,\quad \theta_y,\quad p_x,\quad p_y.
 $$</div>
@@ -2053,15 +2052,15 @@ $$</div>
 <div class="math-block">$$
 k_\perp=\sqrt{k_x^2+k_y^2}.
 $$</div>
-<h3>22.3. Найти центр модального пакета</h3>
+<h3>22.3. Find the centre of the modal packet</h3>
 <div class="math-block">$$
 u_{\rm target}=ak_\perp.
 $$</div>
-<p>Если используется один полярный угол:</p>
+<p>If a single polar angle is used,</p>
 <div class="math-block">$$
 u_{\rm target}=k_0a\sin\theta.
 $$</div>
-<h3>22.4. Найти окно по \(u\)</h3>
+<h3>22.4. Find the selection window in \(u\)</h3>
 <div class="math-block">$$
 \Delta u
 =
@@ -2073,11 +2072,11 @@ u_{\min}=u_{\rm target}-\Delta u,
 \qquad
 u_{\max}=u_{\rm target}+\Delta u.
 $$</div>
-<p>После обрезки:</p>
+<p>After applying the limits,</p>
 <div class="math-block">$$
 0\le u\le k_0a.
 $$</div>
-<h3>22.5. Найти диапазон азимутальных порядков</h3>
+<h3>22.5. Find the range of azimuthal orders</h3>
 <div class="math-block">$$
 q_{\max}
 \simeq
@@ -2085,12 +2084,12 @@ q_{\max}
 k_\perp(r_0+Fw_0)+q_{\rm margin}
 \right\rceil.
 $$</div>
-<h3>22.6. Сгенерировать кандидатные моды</h3>
-<p>Выбираются бесселевы корни в окне:</p>
+<h3>22.6. Generate candidate modes</h3>
+<p>Select the Bessel roots within the window:</p>
 <div class="math-block">$$
 j_{\ell,m}\in[u_{\min},u_{\max}].
 $$</div>
-<p>Связь семейств:</p>
+<p>The mode-family relations are</p>
 <div class="math-block">$$
 \mathrm{TE}_{0,m}: u=j_{1,m},
 $$</div>
@@ -2103,25 +2102,25 @@ $$</div>
 <div class="math-block">$$
 \mathrm{EH}_{q-1,m}: u=j_{q,m}.
 $$</div>
-<h3>22.7. Решить характеристические уравнения</h3>
-<p>Для каждой моды найти</p>
+<h3>22.7. Solve the characteristic equations</h3>
+<p>For each mode, find</p>
 <div class="math-block">$$
 \gamma_\mu=\beta_\mu+i\alpha_{{\rm amp},\mu}
 $$</div>
-<p>из TE, TM или гибридного уравнения.</p>
-<p>Затем:</p>
+<p>from the TE, TM, or hybrid equation.</p>
+<p>Then,</p>
 <div class="math-block">$$
 n_{{\rm eff},\mu}=\frac{\gamma_\mu}{k_0},
 $$</div>
 <div class="math-block">$$
 \alpha_{{\rm pow},\mu}=2\,\mathrm{Im}\,\gamma_\mu.
 $$</div>
-<h3>22.8. Построить поперечные профили и разложить входное поле</h3>
-<p>Построить $\tilde{\mathbf e}_\mu(x,y)$, затем решить:</p>
+<h3>22.8. Construct the transverse profiles and decompose the input</h3>
+<p>Construct $\tilde{\mathbf e}_\mu(x,y)$, then solve</p>
 <div class="math-block">$$
 c=\arg\min_c\|Ac-y\|^2.
 $$</div>
-<p>Диагностики:</p>
+<p>The diagnostic quantities are</p>
 <div class="math-block">$$
 P_{\rm in}=\|y\|^2,
 $$</div>
@@ -2131,11 +2130,11 @@ $$</div>
 <div class="math-block">$$
 P_{\rm residual}=P_{\rm in}-P_{\rm coupled}.
 $$</div>
-<p>Модальная доля:</p>
+<p>The modal fraction is</p>
 <div class="math-block">$$
 \eta_\mu=\frac{|c_\mu|^2}{P_{\rm in}}.
 $$</div>
-<h3>22.9. Распространить поле</h3>
+<h3>22.9. Propagate the field</h3>
 <div class="math-block">$$
 \mathbf E(r,\varphi,z)
 =
@@ -2143,11 +2142,11 @@ $$</div>
 c_\mu\tilde{\mathbf e}_\mu(r,\varphi)
 \exp(i\gamma_\mu z).
 $$</div>
-<p>Интенсивность:</p>
+<p>The intensity is</p>
 <div class="math-block">$$
 I(r,\varphi,z)=|\mathbf E(r,\varphi,z)|^2.
 $$</div>
-<h3>22.10. Оценить продольную расфазировку</h3>
+<h3>22.10. Estimate longitudinal dephasing</h3>
 <div class="math-block">$$
 \bar\beta
 =
@@ -2171,7 +2170,7 @@ C(z)=
 }
 {(\sum_\mu w_\mu)^2}.
 $$</div>
-<h3>22.11. Оценить импульсные задержки</h3>
+<h3>22.11. Estimate pulse delays</h3>
 <div class="math-block">$$
 \frac{v_{g,\mu}}{c}
 =
@@ -2186,16 +2185,16 @@ $$</div>
 <div class="math-block">$$
 \Delta t_\mu(z)=t_\mu(z)-\frac{z}{c}.
 $$</div>
-<p>Вес после распространения:</p>
+<p>The weight after propagation is</p>
 <div class="math-block">$$
 w_\mu(z)=w_\mu(0)\exp(-\alpha_{{\rm pow},\mu}z).
 $$</div></div></details>
-<details class="chapter" id="section-23"><summary>23. Основные физические выводы</summary><div class="chapter-body"><ol>
+<details class="chapter" id="section-23"><summary>23. Main physical conclusions</summary><div class="chapter-body"><ol>
 <li>
-<p>Переменная $u$ важнее самого радиального индекса $m$, потому что именно $u/a$ является поперечным волновым числом моды.</p>
+<p>The variable $u$ is more informative than the radial index $m$ alone, since $u/a$ is the transverse wavenumber of the mode.</p>
 </li>
 <li>
-<p>Наклонный пучок возбуждает моды около</p>
+<p>A tilted beam excites modes near</p>
 </li>
 </ol>
 <div class="math-block">$$
@@ -2203,169 +2202,169 @@ u_{\rm target}=k_0a\sin\theta.
 $$</div>
 <ol start="3">
 <li>
-<p>При больших углах $u_{\rm target}$ велик, поэтому расчет должен включать высокие моды.</p>
+<p>At large angles, $u_{\rm target}$ is large, so high-order modes must be included.</p>
 </li>
 <li>
-<p>Ширина модального пакета по $u$ задается угловым спектром пучка:</p>
+<p>The packet width in $u$ is set by the beam's angular spectrum:</p>
 </li>
 </ol>
 <div class="math-block">$$
 \Delta u\sim\frac{a}{w_0}.
 $$</div>
 <ol start="5">
-<li>Число значимых азимутальных гармоник растет как</li>
+<li>The number of significant azimuthal harmonics grows as</li>
 </ol>
 <div class="math-block">$$
 q\sim k_\perp w_0.
 $$</div>
 <ol start="6">
 <li>
-<p>Смещение пучка расширяет угловой состав, потому что входное поле перестает быть симметричным относительно оси волновода.</p>
+<p>Displacing the beam broadens its angular-harmonic content because the input field is no longer symmetric about the waveguide axis.</p>
 </li>
 <li>
-<p>Продольная картина интенсивности определяется межмодовой интерференцией:</p>
+<p>The longitudinal evolution of the intensity pattern is governed by intermodal interference:</p>
 </li>
 </ol>
 <div class="math-block">$$
 \exp[i(\beta_\mu-\beta_\nu)z].
 $$</div>
 <ol start="8">
-<li>Характерная длина изменения картины связана с разбросом $\beta$:</li>
+<li>The characteristic distance over which the pattern changes is related to the spread in $\beta$:</li>
 </ol>
 <div class="math-block">$$
 L_\phi=\frac{2\pi}{\sigma_\beta}.
 $$</div>
 <ol start="9">
-<li>При росте угла</li>
+<li>As the angle increases,</li>
 </ol>
 <div class="math-block">$$
 \frac{d\beta}{du}\simeq-\frac{\tan\theta}{a},
 $$</div>
-<p>поэтому та же ширина по $u$ дает больший разброс по $\beta$, и картина меняется быстрее.</p>
+<p>so the same width in $u$ produces a larger spread in $\beta$, and the pattern changes more rapidly.</p>
 <ol start="10">
-<li>В импульсной модели разные моды приходят в разное время из-за разных групповых скоростей:</li>
+<li>In the pulse model, modes arrive at different times because their group velocities differ:</li>
 </ol>
 <div class="math-block">$$
 \frac{v_g}{c}
 =
 \sqrt{1-\left(\frac{u}{k_0a}\right)^2}.
 $$</div></div></details>
-<details class="chapter" id="section-24"><summary>24. Соответствие формулам в файлах проекта</summary><div class="chapter-body"><p>Основные места в коде:</p>
+<details class="chapter" id="section-24"><summary>24. Mapping the equations to project files</summary><div class="chapter-body"><p>The main locations in the original <code>waveguide_practice</code> package are:</p>
 <ul>
-<li><code>waveguide_practice/config.py</code>: параметры $\lambda$, $d$, $a$, $k_0$, $\varepsilon_m$, $v$, параметры гауссова пучка.</li>
-<li><code>waveguide_practice/cylindrical_modes.py</code>: характеристические уравнения TE/TM/HE/EH, бесселевы начальные приближения, решение комплексной $\gamma$, $n_{\rm eff}$, $\alpha_{\rm pow}$.</li>
-<li><code>waveguide_practice/attenuation.py</code>: оценки Френеля, шероховатость, лучевое затухание, формула Маркатили.</li>
-<li><code>waveguide_practice/projection.py</code>: гауссов входной пучок, поперечные профили мод, нормировка, least-squares разложение, распространение поля.</li>
-<li><code>waveguide_practice/angular_analysis.py</code>: окно по $u$, оценка $q_{\max}$, генерация кандидатных мод, полярная квадратура, $C(z)$, $L_\phi$, угловые и смещенные sweep-расчеты.</li>
-<li><code>waveguide_practice/pulse.py</code>: групповая скорость, задержки, гауссов импульс, дельта-приходы.</li>
+<li><code>waveguide_practice/config.py</code>: $\lambda$, $d$, $a$, $k_0$, $\varepsilon_m$, $v$, and Gaussian-beam parameters.</li>
+<li><code>waveguide_practice/cylindrical_modes.py</code>: TE/TM/HE/EH characteristic equations, Bessel-root initial estimates, solution for complex $\gamma$, $n_{\rm eff}$, and $\alpha_{\rm pow}$.</li>
+<li><code>waveguide_practice/attenuation.py</code>: Fresnel estimates, roughness, ray-optical attenuation, and the Marcatili formula.</li>
+<li><code>waveguide_practice/projection.py</code>: input Gaussian beam, transverse modal profiles, normalization, least-squares decomposition, and field propagation.</li>
+<li><code>waveguide_practice/angular_analysis.py</code>: the $u$ window, $q_{\max}$ estimate, candidate-mode generation, polar quadrature, $C(z)$, $L_\phi$, and parameter sweeps over launch angle and displacement.</li>
+<li><code>waveguide_practice/pulse.py</code>: group velocity, delays, Gaussian pulses, and delta-function arrivals.</li>
 </ul>
-<p>Соответствие источникам:</p>
+<p>The corresponding sources are:</p>
 <ul>
-<li>Модальные уравнения, семейства HE/EH и масштаб потерь: <a href="https://doi.org/10.1002/j.1538-7305.1964.tb04108.x">Marcatili, Schmeltzer, 1964</a>.</li>
-<li>Лучевая трактовка потерь и связь с волновым расчетом: <a href="https://doi.org/10.1109/JLT.1985.1074177">Miyagi, 1985</a>.</li>
-<li>Мультимодовая передача, угловое распределение и коэффициенты отражения: <a href="https://doi.org/10.1364/JOSAA.6.000423">Matsuura et al., 1989</a>, <a href="https://doi.org/10.1364/JOSAA.10.000277">Saito et al., 1993</a>.</li>
-<li>Регенерация поля и продольная фазовая периодичность: <a href="https://doi.org/10.1364/AO.31.005086">Jenkins, Devereux, 1992</a>.</li>
-<li>Потери связи и низшая гибридная мода EH11 в резонаторной постановке: <a href="https://doi.org/10.1109/JQE.1972.1076875">Abrams, 1972</a>.</li>
-<li>Прикладной контекст серебряного Raman/SERS-волноводного резонатора: <a href="https://doi.org/10.1109/JSEN.2021.3113373">Khannanov, Vankov, Kulik et al., 2021</a>.</li>
+<li>Modal equations, HE/EH families, and loss scaling: <a href="https://doi.org/10.1002/j.1538-7305.1964.tb04108.x">Marcatili, Schmeltzer, 1964</a>.</li>
+<li>Ray-optical interpretation of attenuation and its connection to wave-based calculations: <a href="https://doi.org/10.1109/JLT.1985.1074177">Miyagi, 1985</a>.</li>
+<li>Multimode transmission, angular distributions, and reflection coefficients: <a href="https://doi.org/10.1364/JOSAA.6.000423">Matsuura et al., 1989</a>, <a href="https://doi.org/10.1364/JOSAA.10.000277">Saito et al., 1993</a>.</li>
+<li>Field regeneration and longitudinal phase periodicity: <a href="https://doi.org/10.1364/AO.31.005086">Jenkins, Devereux, 1992</a>.</li>
+<li>Coupling losses and the lowest-order hybrid EH11 mode in resonators: <a href="https://doi.org/10.1109/JQE.1972.1076875">Abrams, 1972</a>.</li>
+<li>Experimental context of a silver Raman/SERS waveguide resonator: <a href="https://doi.org/10.1109/JSEN.2021.3113373">Khannanov, Vankov, Kulik et al., 2021</a>.</li>
 </ul></div></details>
-<details class="chapter" id="section-25"><summary>25. Краткая таблица формул</summary><div class="chapter-body"><table>
+<details class="chapter" id="section-25"><summary>25. Formula reference</summary><div class="chapter-body"><table>
 <thead>
 <tr>
-<th>Величина</th>
-<th>Формула</th>
+<th>Quantity</th>
+<th>Formula</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Волновое число</td>
+<td>Vacuum wavenumber</td>
 <td>$k_0=2\pi/\lambda$</td>
 </tr>
 <tr>
-<td>Радиус</td>
+<td>Radius</td>
 <td>$a=d/2$</td>
 </tr>
 <tr>
-<td>Показатель металла</td>
+<td>Metal refractive index</td>
 <td>$v=\sqrt{\varepsilon_m}$</td>
 </tr>
 <tr>
-<td>Поперечное число моды</td>
+<td>Modal transverse wavenumber</td>
 <td>$k_{\perp,\mu}=u_\mu/a$</td>
 </tr>
 <tr>
-<td>Продольная постоянная без потерь</td>
+<td>Lossless longitudinal propagation constant</td>
 <td>$\beta_\mu\simeq\sqrt{k_0^2-(u_\mu/a)^2}$</td>
 </tr>
 <tr>
-<td>Модальный угол</td>
+<td>Modal angle</td>
 <td>$\theta_\mu=\arcsin[u_\mu/(k_0a)]$</td>
 </tr>
 <tr>
-<td>Центр возбуждения</td>
+<td>Excitation centre</td>
 <td>$u_{\rm target}=k_0a\sin\theta$</td>
 </tr>
 <tr>
-<td>Ширина окна</td>
+<td>Selection half-width</td>
 <td>$\Delta u=(a/w_0)\sqrt{2\ln(1/p_{\min})}$</td>
 </tr>
 <tr>
-<td>Азимутальный порядок</td>
+<td>Azimuthal order</td>
 <td>$q_{\max}\sim k_\perp(r_0+w_0)$</td>
 </tr>
 <tr>
-<td>Комплексная постоянная</td>
+<td>Complex propagation constant</td>
 <td>$\gamma=\beta+i\alpha_{\rm amp}$</td>
 </tr>
 <tr>
-<td>Затухание мощности</td>
+<td>Power attenuation</td>
 <td>$\alpha_{\rm pow}=2\,\mathrm{Im}\,\gamma$</td>
 </tr>
 <tr>
-<td>Маркатили</td>
+<td>Marcatili estimate</td>
 <td>$\alpha_{\rm M}=(u/2\pi)^2(\lambda^2/a^3)\mathrm{Re}\,\nu$</td>
 </tr>
 <tr>
-<td>Лучевая модель</td>
+<td>Ray model</td>
 <td>$\alpha_{\rm ray}=(1-R)\tan\theta/(2a)$</td>
 </tr>
 <tr>
-<td>Модальное поле</td>
+<td>Modal field</td>
 <td>$\mathbf E(z)=\sum_\mu c_\mu\mathbf e_\mu e^{i\gamma_\mu z}$</td>
 </tr>
 <tr>
-<td>Модальная корреляция</td>
+<td>Modal correlation</td>
 <td>$C(z)=|\sum_\mu w_\mu e^{i(\beta_\mu-\bar\beta)z}|^2/(\sum_\mu w_\mu)^2$</td>
 </tr>
 <tr>
-<td>Длина расфазировки</td>
+<td>Dephasing length</td>
 <td>$L_\phi=2\pi/\sigma_\beta$</td>
 </tr>
 <tr>
-<td>Групповая скорость</td>
+<td>Group velocity</td>
 <td>$v_g/c=\sqrt{1-[u/(k_0a)]^2}$</td>
 </tr>
 <tr>
-<td>Время прихода</td>
+<td>Arrival time</td>
 <td>$t_\mu=z/v_{g,\mu}$</td>
 </tr>
 </tbody>
 </table></div></details>
-<details class="chapter" id="section-26"><summary>26. Что еще можно добавить в следующей версии</summary><div class="chapter-body"><p>Этот файл уже покрывает текущий расчет и основные статьи из корня папки. Для версии, предназначенной прямо для текста практики или статьи, полезно добавить:</p>
+<details class="chapter" id="section-26"><summary>26. Possible extensions</summary><div class="chapter-body"><p>These notes cover the current calculation and its main research sources. For a version intended as part of an internship report or research paper, useful additions would be:</p>
 <ol>
-<li>Рисунок геометрии: капилляр, радиус $a$, входной угол $\theta$, смещение $r_0$.</li>
-<li>Рисунок связи $u_{\rm target}=k_0a\sin\theta$ с угловым спектром пучка.</li>
-<li>Иллюстрацию функций Бесселя и смысл нулей $j_{\ell,m}$.</li>
-<li>Таблицу численных параметров для конкретных случаев из ноутбука.</li>
-<li>Отдельную главу по SERS/плазмонному усилению, если расчет будет связываться не только с распространением мод в капилляре, но и с усилением Raman-сигнала на серебряной поверхности.</li>
+<li>A geometry diagram showing the capillary, radius $a$, launch angle $\theta$, and displacement $r_0$.</li>
+<li>A diagram relating $u_{\rm target}=k_0a\sin\theta$ to the beam's angular spectrum.</li>
+<li>An illustration of Bessel functions and the meaning of their zeros $j_{\ell,m}$.</li>
+<li>A table of numerical parameters for specific notebook examples.</li>
+<li>A separate chapter on SERS and plasmonic enhancement if the calculation is extended from modal propagation in a capillary to Raman-signal enhancement at the silver surface.</li>
 </ol></div></details>
-<details class="chapter" id="section-27"><summary>27. Литература</summary><div class="chapter-body"><ol>
-<li>E. A. J. Marcatili, R. A. Schmeltzer, "Hollow Metallic and Dielectric Waveguides for Long Distance Optical Transmission and Lasers", Bell System Technical Journal, 1964. Локальный файл: <a href="https://doi.org/10.1002/j.1538-7305.1964.tb04108.x">marcatili1964.pdf</a>.</li>
-<li>M. Miyagi, "Waveguide-Loss Evaluation in Circular Hollow Waveguides and Its Ray-Optical Treatment", Journal of Lightwave Technology, Vol. LT-3, No. 2, April 1985. Локальный файл: <a href="https://doi.org/10.1109/JLT.1985.1074177">miyagi1985.pdf</a>.</li>
-<li>Y. Matsuura, M. Saito, M. Miyagi, A. Hongo, "Loss characteristics of circular hollow waveguides for incoherent infrared light", Journal of the Optical Society of America A, Vol. 6, No. 3, March 1989. Локальный файл: <a href="https://doi.org/10.1364/JOSAA.6.000423">matsuura1989_important.pdf</a>.</li>
-<li>M. Saito, S. Sato, M. Miyagi, "Loss characteristics of infrared hollow waveguides in multimode transmission", Journal of the Optical Society of America A, Vol. 10, No. 2, February 1993. Локальный файл: <a href="https://doi.org/10.1364/JOSAA.10.000277">saito1993_Important.pdf</a>.</li>
-<li>R. L. Abrams, "Coupling Losses in Hollow Waveguide Laser Resonators", IEEE Journal of Quantum Electronics, Vol. QE-8, No. 11, November 1972. Локальный файл: <a href="https://doi.org/10.1109/JQE.1972.1076875">abrams1972.pdf</a>.</li>
-<li>R. M. Jenkins, R. W. J. Devereux, "Effect of field regeneration on the TEM00 transmission characteristics of a circular-section waveguide", 1992. Локальный файл: <a href="https://doi.org/10.1364/AO.31.005086">jenkins1992.pdf</a>.</li>
-<li>M. N. Khannanov, A. B. Vankov, V. E. Kirpichev, L. V. Kulik, I. V. Kukushkin, "Express Analysis of Gas With Surface Enhanced Raman Scattering Waveguide Resonator", IEEE Sensors Journal proof, 2021. Локальный файл: <a href="https://doi.org/10.1109/JSEN.2021.3113373">2021_Khannanov_Vankov_Kulik.pdf</a>.</li>
+<details class="chapter" id="section-27"><summary>27. References</summary><div class="chapter-body"><ol>
+<li>E. A. J. Marcatili, R. A. Schmeltzer, "Hollow Metallic and Dielectric Waveguides for Long Distance Optical Transmission and Lasers", Bell System Technical Journal, 1964. <a href="https://doi.org/10.1002/j.1538-7305.1964.tb04108.x">Publication</a>.</li>
+<li>M. Miyagi, "Waveguide-Loss Evaluation in Circular Hollow Waveguides and Its Ray-Optical Treatment", Journal of Lightwave Technology, Vol. LT-3, No. 2, April 1985. <a href="https://doi.org/10.1109/JLT.1985.1074177">Publication</a>.</li>
+<li>Y. Matsuura, M. Saito, M. Miyagi, A. Hongo, "Loss characteristics of circular hollow waveguides for incoherent infrared light", Journal of the Optical Society of America A, Vol. 6, No. 3, March 1989. <a href="https://doi.org/10.1364/JOSAA.6.000423">Publication</a>.</li>
+<li>M. Saito, S. Sato, M. Miyagi, "Loss characteristics of infrared hollow waveguides in multimode transmission", Journal of the Optical Society of America A, Vol. 10, No. 2, February 1993. <a href="https://doi.org/10.1364/JOSAA.10.000277">Publication</a>.</li>
+<li>R. L. Abrams, "Coupling Losses in Hollow Waveguide Laser Resonators", IEEE Journal of Quantum Electronics, Vol. QE-8, No. 11, November 1972. <a href="https://doi.org/10.1109/JQE.1972.1076875">Publication</a>.</li>
+<li>R. M. Jenkins, R. W. J. Devereux, "Effect of field regeneration on the TEM00 transmission characteristics of a circular-section waveguide", 1992. <a href="https://doi.org/10.1364/AO.31.005086">Publication</a>.</li>
+<li>M. N. Khannanov, A. B. Vankov, V. E. Kirpichev, L. V. Kulik, I. V. Kukushkin, "Express Analysis of Gas With Surface Enhanced Raman Scattering Waveguide Resonator", IEEE Sensors Journal, 2021. <a href="https://doi.org/10.1109/JSEN.2021.3113373">Publication</a>.</li>
 </ol></div></details>
 <p class="endnote">Dmitry Shchigarev · Waveguide Lab · <a href="mailto:dima.shigarev@yandex.ru">dima.shigarev@yandex.ru</a></p>
 </main></div></body></html>

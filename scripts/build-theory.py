@@ -1,4 +1,4 @@
-"""Render the complete original notes. Optional dependency: Markdown==3.8.2.
+"""Render the complete English theory. Optional dependency: Markdown==3.8.2.
 
 The generated HTML is committed so deploying the app does not require this tool.
 Formula source is protected before Markdown parsing to preserve every TeX token.
@@ -13,7 +13,7 @@ ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'qa/build-deps'))
 import markdown
 
-source=(ROOT/'assets/theory-original.md').read_text(encoding='utf-8-sig')
+source=(ROOT/'assets/theory.md').read_text(encoding='utf-8-sig')
 source=re.sub(r'^---\n.*?\n---\n','',source,flags=re.S)
 references=json.loads((ROOT/'assets/references.json').read_text(encoding='utf-8'))
 for ref in references: source=source.replace(']('+ref['file']+')',']('+ref['url']+')')
@@ -40,11 +40,10 @@ for index in range(1,len(parts),2):
     toc.append(f'<a href="#{key}">{html.escape(label)}</a>')
     title=render('## '+heading).removeprefix('<h2>').removesuffix('</h2>')
     sections.append(f'<details class="chapter" id="{key}"'+(' open' if key=='section-0' else '')+f'><summary>{title}</summary><div class="chapter-body">{render(body)}</div></details>')
-page='''<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Waveguide Lab — Full theory</title><link rel="icon" href="./assets/icon.svg"><link rel="stylesheet" href="./theory.css"><script defer src="./theory.js"></script></head><body>
-<header><a href="./" target="_top">Waveguide Lab</a><span>Теория расчёта полого цилиндрического волновода</span><a href="./assets/theory-original.md" download>Скачать исходник</a></header>
-<div class="reader"><aside><h2>Оглавление</h2><input id="chapter-search" type="search" placeholder="Найти раздел…" aria-label="Найти раздел"><nav>TOC</nav></aside><main>
-<div class="reader-tools"><button id="expand-all">Раскрыть все</button><button id="collapse-all">Свернуть все</button><button id="print-theory">Печать / PDF</button><span id="math-status" role="status">Подготовка формул…</span></div>
-<div class="reader-note">Полный текст исходной методики, без сокращения выводов. Разделы о лучевой модели, шероховатости, импульсах и корреляции описывают настольный проект; соответствующих расчётных инструментов в веб-версии нет. Обозначения HE/EH следуют соглашению исходного кода и могут отличаться от обозначений в статьях. Ссылки на локальные PDF заменены ссылками на публикации.</div>
+page='''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Waveguide Lab — Full theory</title><link rel="icon" href="./assets/icon.svg"><link rel="stylesheet" href="./theory.css"><script defer src="./theory.js"></script></head><body>
+<header><a href="./" target="_top">Waveguide Lab</a><span>Theory of a hollow cylindrical waveguide</span><a href="./assets/theory.md" download>Download Markdown</a></header>
+<div class="reader"><aside><h2>Contents</h2><input id="chapter-search" type="search" placeholder="Find a chapter…" aria-label="Find a chapter"><nav>TOC</nav></aside><main>
+<div class="reader-tools"><button id="expand-all">Expand all</button><button id="collapse-all">Collapse all</button><button id="print-theory">Print / PDF</button><span id="math-status" role="status">Loading equations…</span></div>
 INTRO
 SECTIONS
 <p class="endnote">Dmitry Shchigarev · Waveguide Lab · <a href="mailto:dima.shigarev@yandex.ru">dima.shigarev@yandex.ru</a></p>

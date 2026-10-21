@@ -23,10 +23,16 @@
 
 ## Interface and modal-lab revision
 
-The application interface was revised to English with an industrial layout. The original complete Russian theory was preserved as a separate reader, containing all 28 chapters and 358 display-math blocks. Publisher links replace local PDF references in the rendered HTML; the original Markdown remains unchanged.
+The application interface was revised to English with an industrial layout. The complete theory is available in English as a separate reader, containing all 28 chapters and 358 display-math blocks. Publisher links replace local PDF references in both the English Markdown and rendered HTML; the original Russian Markdown remains in the repository as a source reference.
 
 The suite now contains **18 Python tests and 7 JavaScript tests**. Added checks cover unit-power modal profiles; constructive and destructive interference; orthogonal vector polarization; propagation of HE/EH/TE/TM; sampling and index bounds; retaining the main simulation while inspecting modes; failed image loads preserving the previous frame; and fixed / detailed power-axis limits without hiding excess values.
 
 Browser checks on the revised interface: selecting HE_1,3c from the simulation, manually entering HE_1,1c, summing both, phase display, and exact cancellation of two identical profiles with a 180° phase difference. Input-beam keyboard positioning updates the offset. The experimental region and physical-scale controls fit within their panel at desktop width.
 
 Additional browser checks: pointer drag changes beam X/Y and polar offset; the Detail power axis resolves 99.8–100% without artificial 102% headroom; all theory chapters expand with 565 rendered mathematical expressions and no MathJax error nodes. At a 390 px viewport the document width is 375 px and the ROI / physical-scale fields remain within the panel. Stop during engine loading cancels the task, and a new calculation can be launched.
+
+## Complete English theory
+
+Translated all 481 source lines containing Russian text, including headings, derivations, tables, captions and reference descriptions. Compared the full ordered sequence of 565 TeX expressions against the original: every expression is unchanged, including all 358 display blocks. Both documents retain 28 chapters.
+
+Browser verification: all chapters expand; all 565 expressions render with zero MathJax error nodes; the document language is English and no Cyrillic text remains in the reader. Chapter navigation opens the selected section. The Markdown download uses the complete English source with publication URLs. Removed the introductory language/desktop-model notice and the duplicate reader banner.

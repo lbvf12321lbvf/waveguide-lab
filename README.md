@@ -4,7 +4,7 @@
 
 A browser-based calculator for hollow metal waveguides, developed by **Dmitry Shchigarev**. Contact: [dima.shigarev@yandex.ru](mailto:dima.shigarev@yandex.ru).
 
-Python, NumPy and SciPy run locally through Pyodide in a Web Worker. No calculation server or account is required. The interface is in English; the complete original theory notes are retained in Russian.
+Python, NumPy and SciPy run locally through Pyodide in a Web Worker. No calculation server or account is required. The interface and the complete theory are in English.
 
 ## Features
 
@@ -16,7 +16,7 @@ Python, NumPy and SciPy run locally through Pyodide in a Web Worker. No calculat
 - Modal intensity similarity and optional coherent fitting from three initial guesses.
 - PNG / CSV / JSON exports, calculation-file import and local history of the last 12 simulations.
 - Stop cancels the current worker without discarding results already shown.
-- Full theory reader: 28 chapters, complete derivations and formulas, table of contents, print support and the original Markdown download. Seven linked research papers explain the model's provenance.
+- Full theory reader: 28 chapters in English, complete derivations and formulas, table of contents, print support and a Markdown download. Seven linked research papers explain the model's provenance.
 
 ## Use
 
@@ -58,7 +58,7 @@ node --test tests/*.test.mjs
 
 `python/waveguide_core/` contains the numerical core ported from the desktop project. `python/web_engine.py` is the browser adapter and validation boundary. `beam.js` renders the interactive input; `modes.js` manages the independent modal window. Pyodide is pinned to **314.0.7** with its matching NumPy / SciPy / Pillow packages. MathJax **3.2.2** renders the original formulas. Scientific files are never evaluated as code or loaded through pickle.
 
-The generated `theory.html` is committed. To rebuild it from `assets/theory-original.md`, install `Markdown==3.8.2` and run `python scripts/build-theory.py`. Formula source is protected before Markdown conversion.
+The generated `theory.html` is committed. To rebuild it from the English `assets/theory.md`, install `Markdown==3.8.2` and run `python scripts/build-theory.py`. Formula source is protected before Markdown conversion. The translation preserves all 565 mathematical expressions from `assets/theory-original.md`, which remains in the repository for provenance and is excluded from the published site.
 
 ## Deployment and data
 
