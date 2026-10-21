@@ -1,0 +1,9 @@
+dist/
+__pycache__/
+*.pyc
+.venv/
+node_modules/
+.DS_Store
+qa/
+python-manifest.json
+*.zip
